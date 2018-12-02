@@ -1,6 +1,8 @@
 # HASS-amazon-rekognition
 Faces and object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/)
 
+**Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Video for free. Upon sign-up, new Amazon Rekognition Video customers can analyze 1,000 minutes of Video, per month, for the first year. After that, images are about $1 per 1000 analysed. Face metadata storage is a pittance.
+
 ## Development
 * Boto3 auth already done by [Polly integration](https://github.com/home-assistant/home-assistant/blob/master/homeassistant/components/tts/amazon_polly.py)
 * [Detecting image labels](https://docs.aws.amazon.com/rekognition/latest/dg/labels-detect-labels-image.html)
@@ -9,4 +11,4 @@ Faces and object detection with [Amazon Rekognition](https://aws.amazon.com/reko
 
 ### Roadmap
 * Get object detection working
-* Integrate with S3 buckets - we want a web front end to show processed images and results
+* Integrate with S3 buckets - we want a web front end to show processed images and results. Perhaps checkout [s3album](https://github.com/toehio/s3album). Alternatively [Photoprism](https://github.com/photoprism/photoprism/wiki) supports S3 backend?
