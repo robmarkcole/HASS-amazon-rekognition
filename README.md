@@ -12,3 +12,4 @@ Faces and object detection with [Amazon Rekognition](https://aws.amazon.com/reko
 ### Roadmap
 * Get object detection working
 * Integrate with S3 buckets - we want a web front end to show processed images and results. Perhaps checkout [s3album](https://github.com/toehio/s3album). Alternatively [Photoprism](https://github.com/photoprism/photoprism/wiki) supports S3 backend?
+* Checkout integration with [Algorithmia](https://blog.algorithmia.com/amazon-s3-image-processing-pipeline-python/)
