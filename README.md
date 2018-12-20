@@ -1,5 +1,5 @@
 # HASS-amazon-rekognition
-Faces and object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/)
+Faces and label detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). Faces return a bounding box, but sadly objects do not.
 
 **Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Video for free. Upon sign-up, new Amazon Rekognition Video customers can analyze 1,000 minutes of Video, per month, for the first year. After that, images are about $1 per 1000 analysed. Face metadata storage is a pittance.
 
