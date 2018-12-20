@@ -12,4 +12,4 @@ Faces and object detection with [Amazon Rekognition](https://aws.amazon.com/reko
 ### Roadmap
 * Get object detection working
 * Integrate with S3 buckets - we want a web front end to show processed images and results. Perhaps checkout [s3album](https://github.com/toehio/s3album). Alternatively [Photoprism](https://github.com/photoprism/photoprism/wiki) supports S3 backend? [T3 looks very interesting](https://github.com/quiltdata/t4).
-* Host our own [S3 with minio](https://github.com/minio/minio) -> [on a NAS](https://docs.minio.io/docs/minio-gateway-for-nas.html)
+* Host our own [S3 with minio](https://github.com/minio/minio) -> [on a NAS](https://docs.minio.io/docs/minio-gateway-for-nas.html) -> [Synology](https://github.com/minio/minio/issues/4210)
