@@ -1,21 +1,23 @@
 # HASS-amazon-rekognition
-People detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of people detected in the image.
+Object and label detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). By default the state of the sensor is the number of people detected in the image.
 
 **Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Image for free. Upon sign-up, new Amazon Rekognition customers can analyze 5,000 images per month for the first 12 months. After that price is around $1 for 1000 images.
 
 ## Component setup
 For advice on getting your Amazon credentials see the [Polly docs](https://www.home-assistant.io/components/tts.amazon_polly/).
 
-Add to your `configuration.yaml`:
+Place the `custom_components` folder in your configuration directory (or add its contents to an existing custom_components folder). Add to your `configuration.yaml`:
 ```yaml
 image_processing:
   - platform: amazon_rekognition
     aws_access_key_id: AWS_ACCESS_KEY_ID
     aws_secret_access_key: AWS_SECRET_ACCESS_KEY
-    scan_interval: 20000
+    scan_interval: 20000 # optional to limit calls to the API
     source:
       - entity_id: camera.local_file
 ```
+
+To manually trigger rekognition call the camera `scan` service.
 
 ## Development
 * Boto3 auth already done by [Polly integration](https://github.com/home-assistant/home-assistant/blob/master/homeassistant/components/tts/amazon_polly.py)

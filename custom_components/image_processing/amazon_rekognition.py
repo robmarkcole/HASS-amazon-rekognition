@@ -22,6 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 CONF_REGION = 'region_name'
 CONF_ACCESS_KEY_ID = 'aws_access_key_id'
 CONF_SECRET_ACCESS_KEY = 'aws_secret_access_key'
+DEFAULT_TARGET = 'Person'
 
 DEFAULT_REGION = 'us-east-1'
 SUPPORTED_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
@@ -72,12 +73,17 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         CONF_ACCESS_KEY_ID: config.get(CONF_ACCESS_KEY_ID),
         CONF_SECRET_ACCESS_KEY: config.get(CONF_SECRET_ACCESS_KEY),
         }
-    client = boto3.client('rekognition', **aws_config)
+    try:
+        client = boto3.client('rekognition', **aws_config)
+    except Exception as exc:
+        _LOGGER.error(exc)
+        return
 
     entities = []
     for camera in config[CONF_SOURCE]:
         entities.append(Rekognition(
             client,
+            DEFAULT_TARGET,
             camera[CONF_ENTITY_ID],
             camera.get(CONF_NAME),
         ))
@@ -87,9 +93,10 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 class Rekognition(ImageProcessingEntity):
     """Perform object and label recognition."""
 
-    def __init__(self, client, camera_entity, name=None):
+    def __init__(self, client, target, camera_entity, name=None):
         """Init with the client."""
         self._client = client
+        self._target = target
         if name:  # Since name is optional.
             self._name = name
         else:
@@ -103,6 +110,15 @@ class Rekognition(ImageProcessingEntity):
         """Process an image."""
         self._state = None
         self._attributes = {}
+
+        try:
+            response = self._client.detect_labels(Image={'Bytes': image})
+            data = get_label_data(response, label_string=self._target)
+            self._state = data['Instances']
+            self._attributes = parse_labels(response)
+        except Exception as exc:
+            _LOGGER.error(exc)
+            return
 
     @property
     def camera_entity(self):
@@ -118,6 +134,7 @@ class Rekognition(ImageProcessingEntity):
     def device_state_attributes(self):
         """Return device specific state attributes."""
         attr = self._attributes
+        attr['target'] = self._target
         return attr
 
     @property
