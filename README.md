@@ -19,6 +19,10 @@ image_processing:
 
 To manually trigger rekognition call the camera `scan` service.
 
+<p align="center">
+<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/development/usage.png" width="800">
+</p>
+
 ## Development
 * Boto3 auth already done by [Polly integration](https://github.com/home-assistant/home-assistant/blob/master/homeassistant/components/tts/amazon_polly.py)
 * [Detecting image labels](https://docs.aws.amazon.com/rekognition/latest/dg/labels-detect-labels-image.html)
