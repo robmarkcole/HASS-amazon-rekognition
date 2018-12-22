@@ -1,5 +1,5 @@
 """
-Platform that will perform object and label recognition.
+Platform that will perform object detection.
 
 For more details about this platform, please refer to the documentation at
 https://home-assistant.io/components/image_processing/amazon_rekognition
@@ -22,6 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 CONF_REGION = 'region_name'
 CONF_ACCESS_KEY_ID = 'aws_access_key_id'
 CONF_SECRET_ACCESS_KEY = 'aws_secret_access_key'
+CONF_TARGET = 'target'
 DEFAULT_TARGET = 'Person'
 
 DEFAULT_REGION = 'us-east-1'
@@ -38,30 +39,20 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         vol.In(SUPPORTED_REGIONS),
     vol.Required(CONF_ACCESS_KEY_ID): cv.string,
     vol.Required(CONF_SECRET_ACCESS_KEY): cv.string,
+    vol.Optional(CONF_TARGET, default=DEFAULT_TARGET): cv.string,
 })
 
 
-def get_label_data(response, label_string='Person'):
-    """Get label data."""
+def get_label_instances(response, target):
+    """Get the number of instances of a target label."""
     for label in response['Labels']:
-        if label['Name'] == label_string:
-            data = {}
-            data['Confidence'] = round(label['Confidence'], 2)
-            data['Instances'] = len(label['Instances'])
-
-            bounding_boxes = []
-            for instance in label['Instances']:
-                bounding_boxes.append(instance['BoundingBox'])
-
-            data['bounding_boxes'] = bounding_boxes
-            return data
-    return {'Instances': 0, 'Confidence': None, 'bounding_boxes': None}
-
+        if label['Name'] == target:
+            return len(label['Instances'])
 
 def parse_labels(response):
-    """Parse the response and return labels data."""
+    """Parse the API labels data, returning objects only."""
     return {label['Name']: round(label['Confidence'], 2)
-            for label in response['Labels']}
+            for label in response['Labels'] if len(label['Instances']) > 0}
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
@@ -83,7 +74,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     for camera in config[CONF_SOURCE]:
         entities.append(Rekognition(
             client,
-            DEFAULT_TARGET,
+            config.get(CONF_TARGET),
             camera[CONF_ENTITY_ID],
             camera.get(CONF_NAME),
         ))
@@ -104,18 +95,17 @@ class Rekognition(ImageProcessingEntity):
             self._name = "{} {}".format('rekognition', entity_name)
         self._camera_entity = camera_entity
         self._state = None  # The number of instances of interest
-        self._attributes = {}
+        self._labels = {}
 
     def process_image(self, image):
         """Process an image."""
         self._state = None
-        self._attributes = {}
+        self._labels = {}
 
         try:
             response = self._client.detect_labels(Image={'Bytes': image})
-            data = get_label_data(response, label_string=self._target)
-            self._state = data['Instances']
-            self._attributes = parse_labels(response)
+            self._state = get_label_instances(response, self._target)
+            self._labels = parse_labels(response)
         except Exception as exc:
             _LOGGER.error(exc)
             return
@@ -133,7 +123,7 @@ class Rekognition(ImageProcessingEntity):
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
-        attr = self._attributes
+        attr = self._labels
         attr['target'] = self._target
         return attr
 

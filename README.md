@@ -1,5 +1,5 @@
 # HASS-amazon-rekognition
-Object and label detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). By default the state of the sensor is the number of people detected in the image.
+Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). By default the state of the sensor is the number of people detected in the image.
 
 **Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Image for free. Upon sign-up, new Amazon Rekognition customers can analyze 5,000 images per month for the first 12 months. After that price is around $1 for 1000 images.
 
@@ -12,6 +12,8 @@ image_processing:
   - platform: amazon_rekognition
     aws_access_key_id: AWS_ACCESS_KEY_ID
     aws_secret_access_key: AWS_SECRET_ACCESS_KEY
+    region_name: us-east-1 # optional region, default us-east-1
+    target: Person # Optional target object, default Person
     scan_interval: 20000 # optional to limit calls to the API
     source:
       - entity_id: camera.local_file
