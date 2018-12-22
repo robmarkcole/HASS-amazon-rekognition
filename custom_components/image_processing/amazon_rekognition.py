@@ -32,7 +32,7 @@ SUPPORTED_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
                      'ap-northeast-2', 'ap-northeast-1', 'ap-south-1',
                      'sa-east-1']
 
-REQUIREMENTS = ['boto3 == 1.9.16']
+REQUIREMENTS = ['boto3 == 1.9.69']
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_REGION, default=DEFAULT_REGION):
@@ -64,11 +64,17 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         CONF_ACCESS_KEY_ID: config.get(CONF_ACCESS_KEY_ID),
         CONF_SECRET_ACCESS_KEY: config.get(CONF_SECRET_ACCESS_KEY),
         }
+
+    client = boto3.client('rekognition', **aws_config) # Will not raise error.
+
+    # Catch bad auth
     try:
-        client = boto3.client('rekognition', **aws_config)
+        client.detect_labels(Image={'Bytes': b"test"})
     except Exception as exc:
-        _LOGGER.error(exc)
-        return
+        if 'UnrecognizedClientException' in str(exc):
+            _LOGGER.error("Component not setup.")
+            _LOGGER.error(exc)
+            return
 
     entities = []
     for camera in config[CONF_SOURCE]:
