@@ -92,7 +92,7 @@ class Rekognition(ImageProcessingEntity):
             self._name = name
         else:
             entity_name = split_entity_id(camera_entity)[1]
-            self._name = "{} {}".format('rekognition', entity_name)
+            self._name = "{} {} {}".format('rekognition', target, entity_name)
         self._camera_entity = camera_entity
         self._state = None  # The number of instances of interest
         self._labels = {}

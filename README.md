@@ -7,13 +7,14 @@ Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/).
 For advice on getting your Amazon credentials see the [Polly docs](https://www.home-assistant.io/components/tts.amazon_polly/).
 
 Place the `custom_components` folder in your configuration directory (or add its contents to an existing custom_components folder). Add to your `configuration.yaml`:
+
 ```yaml
 image_processing:
   - platform: amazon_rekognition
     aws_access_key_id: AWS_ACCESS_KEY_ID
     aws_secret_access_key: AWS_SECRET_ACCESS_KEY
-    region_name: us-east-1 # optional region, default us-east-1
-    target: Person # Optional target object, default Person
+    region_name: eu-west-1 # optional region, default us-east-1
+    target: Car # Optional target object, default Person
     scan_interval: 20000 # optional to limit calls to the API
     source:
       - entity_id: camera.local_file
