@@ -7,6 +7,7 @@ https://home-assistant.io/components/image_processing/amazon_rekognition
 import base64
 import json
 import logging
+import time
 
 import voluptuous as vol
 
@@ -80,6 +81,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     for camera in config[CONF_SOURCE]:
         entities.append(Rekognition(
             client,
+            config.get(CONF_REGION),
             config.get(CONF_TARGET),
             camera[CONF_ENTITY_ID],
             camera.get(CONF_NAME),
@@ -90,9 +92,10 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 class Rekognition(ImageProcessingEntity):
     """Perform object and label recognition."""
 
-    def __init__(self, client, target, camera_entity, name=None):
+    def __init__(self, client, region, target, camera_entity, name=None):
         """Init with the client."""
         self._client = client
+        self._region = region
         self._target = target
         if name:  # Since name is optional.
             self._name = name
@@ -101,15 +104,20 @@ class Rekognition(ImageProcessingEntity):
             self._name = "{} {} {}".format('rekognition', target, entity_name)
         self._camera_entity = camera_entity
         self._state = None  # The number of instances of interest
-        self._labels = {}
+        self._labels = {} # The parsed label data
+        self._response_time = None # The response time from AWS
 
     def process_image(self, image):
         """Process an image."""
         self._state = None
         self._labels = {}
+        self._response_time = None
 
         try:
+            start_time = time.time()
             response = self._client.detect_labels(Image={'Bytes': image})
+            end_time = time.time()
+            self._response_time = round(end_time - start_time, 1)
             self._state = get_label_instances(response, self._target)
             self._labels = parse_labels(response)
         except Exception as exc:
@@ -131,6 +139,8 @@ class Rekognition(ImageProcessingEntity):
         """Return device specific state attributes."""
         attr = self._labels
         attr['target'] = self._target
+        attr['region'] = self._region
+        attr['response time (sec)'] = self._response_time
         return attr
 
     @property
