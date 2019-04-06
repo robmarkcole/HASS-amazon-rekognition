@@ -49,11 +49,11 @@ def get_label_instances(response, target):
     for label in response['Labels']:
         if label['Name'] == target:
             return len(label['Instances'])
+    return 0
 
 def parse_labels(response):
     """Parse the API labels data, returning objects only."""
-    return {label['Name']: round(label['Confidence'], 2)
-            for label in response['Labels'] if len(label['Instances']) > 0}
+    return {label['Name']: round(label['Confidence'], 2) for label in response['Labels']}
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
@@ -67,15 +67,6 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         }
 
     client = boto3.client('rekognition', **aws_config) # Will not raise error.
-
-    # Catch bad auth
-    try:
-        client.detect_labels(Image={'Bytes': b"test"})
-    except Exception as exc:
-        if 'UnrecognizedClientException' in str(exc):
-            _LOGGER.error("Component not setup.")
-            _LOGGER.error(exc)
-            return
 
     entities = []
     for camera in config[CONF_SOURCE]:
@@ -105,24 +96,14 @@ class Rekognition(ImageProcessingEntity):
         self._camera_entity = camera_entity
         self._state = None  # The number of instances of interest
         self._labels = {} # The parsed label data
-        self._response_time = None # The response time from AWS
 
     def process_image(self, image):
         """Process an image."""
         self._state = None
         self._labels = {}
-        self._response_time = None
-
-        try:
-            start_time = time.time()
-            response = self._client.detect_labels(Image={'Bytes': image})
-            end_time = time.time()
-            self._response_time = round(end_time - start_time, 1)
-            self._state = get_label_instances(response, self._target)
-            self._labels = parse_labels(response)
-        except Exception as exc:
-            _LOGGER.error(exc)
-            return
+        response = self._client.detect_labels(Image={'Bytes': image})
+        self._state = get_label_instances(response, self._target)
+        self._labels = parse_labels(response)
 
     @property
     def camera_entity(self):
@@ -139,8 +120,6 @@ class Rekognition(ImageProcessingEntity):
         """Return device specific state attributes."""
         attr = self._labels
         attr['target'] = self._target
-        attr['region'] = self._region
-        attr['response time (sec)'] = self._response_time
         return attr
 
     @property
