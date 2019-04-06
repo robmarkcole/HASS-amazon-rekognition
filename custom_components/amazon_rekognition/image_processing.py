@@ -49,6 +49,7 @@ def get_label_instances(response, target):
     for label in response['Labels']:
         if label['Name'] == target:
             return len(label['Instances'])
+    return 0
 
 def parse_labels(response):
     """Parse the API labels data, returning objects only."""
