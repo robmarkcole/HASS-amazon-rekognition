@@ -52,8 +52,7 @@ def get_label_instances(response, target):
 
 def parse_labels(response):
     """Parse the API labels data, returning objects only."""
-    return {label['Name']: round(label['Confidence'], 2)
-            for label in response['Labels'] if len(label['Instances']) > 0}
+    return {label['Name']: round(label['Confidence'], 2) for label in response['Labels']}
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
