@@ -1,5 +1,5 @@
 # HASS-amazon-rekognition
-Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). By default the state of the sensor is the number of people detected in the image.
+Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected `target` objects in the image, and the default taret is `Person`. Note that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service. This behaviour can be changed by configuring a `scan_interval` [as described in the docs](https://www.home-assistant.io/components/image_processing#scan_interval-and-optimising-resources).
 
 **Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Image for free. Upon sign-up, new Amazon Rekognition customers can analyze 5,000 images per month for the first 12 months. After that price is around $1 for 1000 images.
 
@@ -15,12 +15,9 @@ image_processing:
     aws_secret_access_key: AWS_SECRET_ACCESS_KEY
     region_name: eu-west-1 # optional region, default us-east-1
     target: Car # Optional target object, default Person
-    scan_interval: 20000 # optional to limit calls to the API
     source:
       - entity_id: camera.local_file
 ```
-
-To manually trigger rekognition call the camera `scan` service.
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/development/usage.png" width="800">

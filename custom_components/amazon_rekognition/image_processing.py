@@ -1,13 +1,11 @@
 """
 Platform that will perform object detection.
-
-For more details about this platform, please refer to the documentation at
-https://home-assistant.io/components/image_processing/amazon_rekognition
 """
 import base64
 import json
 import logging
 import time
+from datetime import timedelta
 
 import voluptuous as vol
 
@@ -34,6 +32,8 @@ SUPPORTED_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
                      'sa-east-1']
 
 REQUIREMENTS = ['boto3 == 1.9.69']
+
+SCAN_INTERVAL = timedelta(days=365)  # SCAN ONCE THEN NEVER AGAIN.
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_REGION, default=DEFAULT_REGION):
