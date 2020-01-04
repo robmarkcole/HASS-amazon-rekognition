@@ -59,7 +59,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 def get_label_instances(response, target):
     """Get the number of instances of a target label."""
     for label in response['Labels']:
-        if label['Name'] == target:
+        if label['Name'].lower() == target.lower(): # Lowercase both to prevent any comparing issues
             return len(label['Instances'])
     return 0
 
@@ -94,7 +94,7 @@ def save_image(image, response, target, confidence, directory):
             box_label = f'{label["Name"]} {label["Confidence"]:.1f}%'
             draw.text((left + line_width, abs(top - line_width - font_height)), label['Name'])
 
-    latest_save_path = directory + f'amazon_rekognition_latest_{target}.jpg'
+    latest_save_path = directory + f'amazon_rekognition_latest_{target.lower()}.jpg'
     img.save(latest_save_path)
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
@@ -118,7 +118,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         entities.append(Rekognition(
             client,
             config.get(CONF_REGION),
-            config.get(CONF_TARGET).lower(), # Lowercase the target
+            config.get(CONF_TARGET),
             config.get(ATTR_CONFIDENCE),
             save_file_folder,
             camera[CONF_ENTITY_ID],
