@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw
 
 import voluptuous as vol
 
+from homeassistant.util.pil import draw_box
 import homeassistant.util.dt as dt_util
 from homeassistant.core import split_entity_id
 import homeassistant.helpers.config_validation as cv
@@ -79,18 +80,14 @@ def save_image(image, response, target, confidence, directory):
         for instance in label['Instances']:
             box = instance['BoundingBox']
 
-            line_width = 3
-            font_height = 12
-
-            left = img.width * box['Left']
-            top = img.height * box['Top']
-            width = img.width * box['Width']
-            height = img.height * box['Height']
-
-            points = ((left,top), (left + width, top), (left + width, top + height), (left , top + height), (left, top))
-            draw.line(points, fill='#00d400', width=line_width)
+            x, y, w, h = box['Left'], box['Top'], box['Width'], box['Height']
+            x_max, y_max = x + w, y + h
 
             box_label = f'{label["Name"]}: {label["Confidence"]:.1f}%'
+            draw_box(draw, (y, x, y_max, x_max), img.width, img.height, color=(0, 212, 0))
+
+            # Use draw for the text so you can give it a color that is actually readable
+            left, top, line_width, font_height = img.width * box['Left'], img.height * box['Top'], 3, 12
             draw.text((left + line_width, abs(top - line_width - font_height)), box_label)
 
     latest_save_path = directory + f'amazon_rekognition_latest_{target.lower()}.jpg'
