@@ -12,7 +12,6 @@ from PIL import Image, ImageDraw
 
 import voluptuous as vol
 
-from homeassistant.util.pil import draw_box
 import homeassistant.util.dt as dt_util
 from homeassistant.core import split_entity_id
 import homeassistant.helpers.config_validation as cv
