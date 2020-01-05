@@ -90,8 +90,8 @@ def save_image(image, response, target, confidence, directory):
             points = ((left,top), (left + width, top), (left + width, top + height), (left , top + height), (left, top))
             draw.line(points, fill='#00d400', width=line_width)
 
-            box_label = f'{label["Name"]} {label["Confidence"]:.1f}%'
-            draw.text((left + line_width, abs(top - line_width - font_height)), label['Name'])
+            box_label = f'{label["Name"]}: {label["Confidence"]:.1f}%'
+            draw.text((left + line_width, abs(top - line_width - font_height)), box_label)
 
     latest_save_path = directory + f'amazon_rekognition_latest_{target.lower()}.jpg'
     img.save(latest_save_path)
