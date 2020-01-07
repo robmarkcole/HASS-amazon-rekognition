@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import re
 import time
 from datetime import timedelta
 from PIL import Image, ImageDraw
@@ -67,7 +68,10 @@ def parse_labels(response):
     """Parse the API labels data, returning objects only."""
     return {label['Name']: round(label['Confidence'], 2) for label in response['Labels']}
 
-def save_image(image, response, target, confidence, directory):
+def get_valid_filename(name):
+    return re.sub(r'(?u)[^-\w.]', '', str(name).strip().replace(' ', '_'))
+
+def save_image(image, response, target, confidence, directory, camera_entity):
     """Draws the actual bounding box of the detected objects."""
     img = Image.open(io.BytesIO(bytearray(image))).convert("RGB")
     draw = ImageDraw.Draw(img)
@@ -90,7 +94,7 @@ def save_image(image, response, target, confidence, directory):
             left, top, line_width, font_height = img.width * box['Left'], img.height * box['Top'], 3, 12
             draw.text((left + line_width, abs(top - line_width - font_height)), box_label)
 
-    latest_save_path = directory + f'amazon_rekognition_latest_{target.lower()}.jpg'
+    latest_save_path = os.path.join(directory, get_valid_filename(camera_entity).lower() + '_latest.jpg')
     img.save(latest_save_path)
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
@@ -158,7 +162,7 @@ class Rekognition(ImageProcessingEntity):
             self._last_detection = dt_util.now()
 
         if hasattr(self, "_save_file_folder"): # Only save if folder is defined
-            save_image(image, response, self._target, self._confidence, self._save_file_folder)
+            save_image(image, response, self._target, self._confidence, self._save_file_folder, self._name)
 
     @property
     def camera_entity(self):
