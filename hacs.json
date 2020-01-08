@@ -1,0 +1,6 @@
+{
+  "name": "Amazon Rekognition",
+  "country": "UK",
+  "domains": ["image_processing"],
+  "homeassistant": "0.99.9"
+}
