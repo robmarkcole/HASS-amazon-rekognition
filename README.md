@@ -13,11 +13,17 @@ image_processing:
   - platform: amazon_rekognition
     aws_access_key_id: AWS_ACCESS_KEY_ID
     aws_secret_access_key: AWS_SECRET_ACCESS_KEY
-    region_name: eu-west-1 # optional region, default us-east-1
+    region_name: eu-west-1 # optional region, default is us-east-1
+    save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
+    confidence: 90 # Optional, default is 80. Only used for bounding boxes atm
     target: Car # Optional target object, default Person
     source:
       - entity_id: camera.local_file
 ```
+
+### Bounding box
+
+If you set a `save_file_folder` an image will be stored with bounding boxes drawn around the objects that have own (as in, AWS returned them). The `confidence` level is used to decide what boxes should be drawn (by default this is everything above 80%).
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/development/usage.png" width="800">
@@ -33,6 +39,6 @@ image_processing:
 * For tests we have the [moto library](https://github.com/spulec/moto)
 
 ### Roadmap
-* Handle bounding boxes at the platform level
+* Handle bounding boxes at the platform level, currently only possible on a component level
 * Integrate with S3 buckets - we want a web front end to show processed images and results. Perhaps checkout [s3album](https://github.com/toehio/s3album). Alternatively [T3 looks very interesting](https://github.com/quiltdata/t4).
 * Host our own [S3 with minio](https://github.com/minio/minio) -> [on a NAS](https://docs.minio.io/docs/minio-gateway-for-nas.html) -> [Synology](https://github.com/minio/minio/issues/4210)
