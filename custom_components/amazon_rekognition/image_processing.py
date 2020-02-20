@@ -76,7 +76,10 @@ def get_label_instances(response, target):
         if (
             label["Name"].lower() == target.lower()
         ):  # Lowercase both to prevent any comparing issues
-            return len(label["Instances"])
+            if len(label["Instances"]) > 0:
+                return len(label["Instances"])
+            else:
+                return 1
     return 0
 
 
