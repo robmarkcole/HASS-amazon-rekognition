@@ -1,40 +1,32 @@
 """
 Platform that will perform object detection.
 """
-import base64
 import io
-import json
 import logging
-import os
 import re
-import time
-from datetime import timedelta
-from PIL import Image, ImageDraw
+from pathlib import Path
 
-import voluptuous as vol
+from PIL import Image, ImageDraw, UnidentifiedImageError
 
-from homeassistant.util.pil import draw_box
-import homeassistant.util.dt as dt_util
-from homeassistant.core import split_entity_id
 import homeassistant.helpers.config_validation as cv
+import homeassistant.util.dt as dt_util
+import voluptuous as vol
 from homeassistant.components.image_processing import (
-    PLATFORM_SCHEMA,
-    ImageProcessingEntity,
     ATTR_CONFIDENCE,
-    CONF_SOURCE,
     CONF_ENTITY_ID,
     CONF_NAME,
+    CONF_SOURCE,
+    PLATFORM_SCHEMA,
+    ImageProcessingEntity,
 )
-
+from homeassistant.core import split_entity_id
+from homeassistant.util.pil import draw_box
 
 _LOGGER = logging.getLogger(__name__)
 
 CONF_REGION = "region_name"
 CONF_ACCESS_KEY_ID = "aws_access_key_id"
 CONF_SECRET_ACCESS_KEY = "aws_secret_access_key"
-CONF_SAVE_FILE_FOLDER = "save_file_folder"
-CONF_TARGET = "target"
-DEFAULT_TARGET = "Person"
 
 DEFAULT_REGION = "us-east-1"
 SUPPORTED_REGIONS = [
@@ -55,9 +47,15 @@ SUPPORTED_REGIONS = [
     "sa-east-1",
 ]
 
-REQUIREMENTS = ["boto3 == 1.9.69"]
+CONF_SAVE_FILE_FOLDER = "save_file_folder"
+CONF_TARGET = "target"
+DEFAULT_TARGET = "Person"
 
-SCAN_INTERVAL = timedelta(days=365)  # SCAN ONCE THEN NEVER AGAIN.
+CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
+DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
+
+
+REQUIREMENTS = ["boto3 == 1.9.69"]
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -66,6 +64,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_SECRET_ACCESS_KEY): cv.string,
         vol.Optional(CONF_TARGET, default=DEFAULT_TARGET): cv.string,
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
+        vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
     }
 )
 
@@ -91,70 +90,33 @@ def get_valid_filename(name):
     return re.sub(r"(?u)[^-\w.]", "", str(name).strip().replace(" ", "_"))
 
 
-def save_image(image, response, target, confidence, directory, camera_entity):
-    """Draws the actual bounding box of the detected objects."""
-    img = Image.open(io.BytesIO(bytearray(image))).convert("RGB")
-    draw = ImageDraw.Draw(img)
-
-    boxes = []
-    for label in response["Labels"]:
-        if (label["Confidence"] < confidence) or (label["Name"] != target):
-            continue
-
-        for instance in label["Instances"]:
-            box = instance["BoundingBox"]
-
-            x, y, w, h = box["Left"], box["Top"], box["Width"], box["Height"]
-            x_max, y_max = x + w, y + h
-
-            box_label = f'{label["Name"]}: {label["Confidence"]:.1f}%'
-            draw_box(
-                draw, (y, x, y_max, x_max), img.width, img.height, color=(0, 212, 0)
-            )
-
-            # Use draw for the text so you can give it a color that is actually readable
-            left, top, line_width, font_height = (
-                img.width * box["Left"],
-                img.height * box["Top"],
-                3,
-                12,
-            )
-            draw.text(
-                (left + line_width, abs(top - line_width - font_height)), box_label
-            )
-
-    latest_save_path = os.path.join(
-        directory, get_valid_filename(camera_entity).lower() + "_latest.jpg"
-    )
-    img.save(latest_save_path)
-
-
 def setup_platform(hass, config, add_devices, discovery_info=None):
     """Set up Rekognition."""
 
     import boto3
 
     aws_config = {
-        CONF_REGION: config.get(CONF_REGION),
-        CONF_ACCESS_KEY_ID: config.get(CONF_ACCESS_KEY_ID),
-        CONF_SECRET_ACCESS_KEY: config.get(CONF_SECRET_ACCESS_KEY),
+        CONF_REGION: config[CONF_REGION],
+        CONF_ACCESS_KEY_ID: config[CONF_ACCESS_KEY_ID],
+        CONF_SECRET_ACCESS_KEY: config[CONF_SECRET_ACCESS_KEY],
     }
 
-    client = boto3.client("rekognition", **aws_config)  # Will not raise error.
+    client = boto3.client("rekognition", **aws_config)
 
-    save_file_folder = config.get(CONF_SAVE_FILE_FOLDER)
+    save_file_folder = config[CONF_SAVE_FILE_FOLDER]
     if save_file_folder:
-        save_file_folder = os.path.join(save_file_folder, "")  # If no trailing / add it
+        save_file_folder = Path(save_file_folder)
 
     entities = []
     for camera in config[CONF_SOURCE]:
         entities.append(
             Rekognition(
                 client,
-                config.get(CONF_REGION),
-                config.get(CONF_TARGET),
-                config.get(ATTR_CONFIDENCE),
+                config[CONF_REGION],
+                config[CONF_TARGET],
+                config[ATTR_CONFIDENCE],
                 save_file_folder,
+                config[CONF_SAVE_TIMESTAMPTED_FILE],
                 camera[CONF_ENTITY_ID],
                 camera.get(CONF_NAME),
             )
@@ -172,6 +134,7 @@ class Rekognition(ImageProcessingEntity):
         target,
         confidence,
         save_file_folder,
+        save_timestamped_file,
         camera_entity,
         name=None,
     ):
@@ -180,8 +143,8 @@ class Rekognition(ImageProcessingEntity):
         self._region = region
         self._target = target
         self._confidence = confidence
-        if save_file_folder:  # Since save_file_folder is optional.
-            self._save_file_folder = save_file_folder
+        self._save_file_folder = save_file_folder
+        self._save_timestamped_file = save_timestamped_file
         self._camera_entity = camera_entity
         if name:  # Since name is optional.
             self._name = name
@@ -202,10 +165,10 @@ class Rekognition(ImageProcessingEntity):
         self._labels = parse_labels(response)
 
         if self._state > 0:
-            self._last_detection = dt_util.now()
+            self._last_detection = dt_util.now().strftime(DATETIME_FORMAT)
 
-        if hasattr(self, "_save_file_folder"):  # Only save if folder is defined
-            save_image(
+        if self._save_file_folder and self._state > 0:
+            self.save_image(
                 image,
                 response,
                 self._target,
@@ -230,12 +193,49 @@ class Rekognition(ImageProcessingEntity):
         attr = self._labels
         attr["target"] = self._target
         if self._last_detection:
-            attr[
-                "last_{}_detection".format(self._target)
-            ] = self._last_detection.strftime("%Y-%m-%d %H:%M:%S")
+            attr[f"last_{self._target.lower()}"] = self._last_detection
         return attr
 
     @property
     def name(self):
         """Return the name of the sensor."""
         return self._name
+
+    @property
+    def should_poll(self):
+        """Return the polling state."""
+        return False
+
+    def save_image(self, image, response, target, confidence, directory, camera_entity):
+        """Draws the actual bounding box of the detected objects."""
+        try:
+            img = Image.open(io.BytesIO(bytearray(image))).convert("RGB")
+        except UnidentifiedImageError:
+            _LOGGER.warning("Sighthound unable to process image, bad data")
+            return
+        draw = ImageDraw.Draw(img)
+
+        for label in response["Labels"]:
+            if (label["Confidence"] < confidence) or (label["Name"] != target):
+                continue
+
+            for instance in label["Instances"]:
+                box = instance["BoundingBox"]
+
+                x, y, w, h = box["Left"], box["Top"], box["Width"], box["Height"]
+                x_max, y_max = x + w, y + h
+
+                box_label = f'{label["Name"]}: {label["Confidence"]:.1f}%'
+                draw_box(
+                    draw, (y, x, y_max, x_max), img.width, img.height, text=box_label,
+                )
+
+        latest_save_path = (
+            directory / f"{get_valid_filename(self._name).lower()}_latest.jpg"
+        )
+        img.save(latest_save_path)
+
+        if self._save_timestamped_file:
+            timestamp_save_path = directory / f"{self._name}_{self._last_detection}.jpg"
+            img.save(timestamp_save_path)
+            _LOGGER.info("Deepstack saved file %s", timestamp_save_path)
