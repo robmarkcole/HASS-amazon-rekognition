@@ -8,7 +8,6 @@ Allows you to do object detection with [Amazon Rekognition](https://aws.amazon.c
   - All you have to do is set a value for `save_file_folder`.
 - No automatic scans to prevent accidental over-billing.
   - You can call the `image_processing.scan` service when a scan is needed.
-  - Or by configuring a `scan_interval` [as described in the docs](https://www.home-assistant.io/components/image_processing#scan_interval-and-optimising-resources).
 
 ## Pricing
 As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Image for free. Upon sign-up, new Amazon Rekognition customers can analyze 5,000 images per month for the first 12 months. After that price is around $1 for 1000 images.
@@ -23,6 +22,7 @@ image_processing:
     aws_secret_access_key: !secret aws_secret_access_key
     region_name: eu-west-1 # Optional region, default is us-east-1
     save_file_folder: /config/www/amazon-rekognition/ # Optional, image storage location
+    save_timestamped_file: True # Set True to save timestamped images, default False
     confidence: 90 # Optional, default is 80. Only used for bounding boxes atm
     target: Car # Optional target object, default Person
     source:
