@@ -55,7 +55,7 @@ CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
 
 
-REQUIREMENTS = ["boto3 == 1.9.69"]
+REQUIREMENTS = ["boto3"]
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
