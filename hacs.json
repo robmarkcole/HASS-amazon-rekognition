@@ -1,5 +1,6 @@
 {
   "name": "Amazon Rekognition",
-  "country": "UK",
-  "domains": ["image_processing"]
+  "domains": [
+    "image_processing"
+  ]
 }
