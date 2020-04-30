@@ -36,3 +36,9 @@ If you set a `save_file_folder` an image will be stored with bounding boxes draw
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/development/card.png" width="400">
 </p>
+
+## Development
+* `python3 -m venv venv`
+* `source venv/bin/activate`
+* `pip install -r requirements-dev.txt`
+* `venv/bin/py.test custom_components/amazon_rekognition/tests.py -vv -p no:warnings`

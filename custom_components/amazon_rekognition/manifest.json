@@ -3,7 +3,7 @@
         "name": "Amazon Rekognition custom component",
         "documentation": "https://github.com/robmarkcole/HASS-amazon-rekognition",
         "requirements": [
-                "pillow>=7.1.2",
+                "pillow==7.1.1",
                 "boto3>=1.9.69"
         ],
         "codeowners": [
