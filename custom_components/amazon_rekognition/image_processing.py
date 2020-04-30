@@ -69,13 +69,16 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-def get_label_instances(response, target):
-    """Get the number of instances of a target label."""
+def get_label_instances(response, target, confidence_threshold):
+    """Get the number of instances of a target label above the confidence threshold."""
     for label in response["Labels"]:
         if (
             label["Name"].lower() == target.lower()
         ):  # Lowercase both to prevent any comparing issues
-            return len(label["Instances"])
+            confident_labels = [
+                l for l in label["Instances"] if l["Confidence"] > confidence_threshold
+            ]
+            return len(confident_labels)
     return 0
 
 
@@ -161,7 +164,7 @@ class Rekognition(ImageProcessingEntity):
         self._labels = {}
 
         response = self._client.detect_labels(Image={"Bytes": image})
-        self._state = get_label_instances(response, self._target)
+        self._state = get_label_instances(response, self._target, self._confidence)
         self._labels = parse_labels(response)
 
         if self._state > 0:
