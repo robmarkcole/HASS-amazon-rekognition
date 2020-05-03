@@ -68,8 +68,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_TARGET, default=DEFAULT_TARGET): cv.string,
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
-        vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES):
-            vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES): vol.All(
+            vol.Coerce(int), vol.Range(min=0)
+        ),
     }
 )
 
@@ -124,10 +125,12 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             time.sleep(1)
 
     if not success:
-        raise Exception("Failed to create boto3 client. Maybe try increasing "
-            "the boto_retries setting. Retry counter was {}".format(retries))
+        raise Exception(
+            "Failed to create boto3 client. Maybe try increasing "
+            "the boto_retries setting. Retry counter was {}".format(retries)
+        )
 
-    save_file_folder = config[CONF_SAVE_FILE_FOLDER]
+    save_file_folder = config.get(CONF_SAVE_FILE_FOLDER)
     if save_file_folder:
         save_file_folder = Path(save_file_folder)
 
