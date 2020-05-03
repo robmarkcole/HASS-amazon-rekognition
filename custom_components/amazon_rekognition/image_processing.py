@@ -4,6 +4,7 @@ Platform that will perform object detection.
 import io
 import logging
 import re
+import time
 from pathlib import Path
 
 from PIL import Image, ImageDraw, UnidentifiedImageError
@@ -54,6 +55,8 @@ DEFAULT_TARGET = "Person"
 CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
 
+CONF_BOTO_RETRIES = "boto_retries"
+DEFAULT_BOTO_RETRIES = 5
 
 REQUIREMENTS = ["boto3"]
 
@@ -65,6 +68,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_TARGET, default=DEFAULT_TARGET): cv.string,
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
+        vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES):
+            vol.All(vol.Coerce(int), vol.Range(min=0)),
     }
 )
 
@@ -98,13 +103,29 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 
     import boto3
 
+    _LOGGER.debug("boto_retries setting is {}".format(config[CONF_BOTO_RETRIES]))
+
     aws_config = {
         CONF_REGION: config[CONF_REGION],
         CONF_ACCESS_KEY_ID: config[CONF_ACCESS_KEY_ID],
         CONF_SECRET_ACCESS_KEY: config[CONF_SECRET_ACCESS_KEY],
     }
 
-    client = boto3.client("rekognition", **aws_config)
+    retries = 0
+    success = False
+    while retries <= config[CONF_BOTO_RETRIES]:
+        try:
+            client = boto3.client("rekognition", **aws_config)
+            success = True
+            break
+        except KeyError:
+            _LOGGER.info("boto3 client failed, retries={}".format(retries))
+            retries += 1
+            time.sleep(1)
+
+    if not success:
+        raise Exception("Failed to create boto3 client. Maybe try increasing "
+            "the boto_retries setting. Retry counter was {}".format(retries))
 
     save_file_folder = config[CONF_SAVE_FILE_FOLDER]
     if save_file_folder:
