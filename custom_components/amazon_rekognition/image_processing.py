@@ -106,7 +106,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 
     client = boto3.client("rekognition", **aws_config)
 
-    save_file_folder = config[CONF_SAVE_FILE_FOLDER]
+    save_file_folder = config.get(CONF_SAVE_FILE_FOLDER)
     if save_file_folder:
         save_file_folder = Path(save_file_folder)
 
