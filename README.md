@@ -19,7 +19,7 @@ image_processing:
     region_name: eu-west-1 # optional region, default is us-east-1
     save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
     save_timestamped_file: True # Set True to save timestamped images, default False
-    confidence: 90 # Optional, default is 80. Only used for bounding boxes atm
+    confidence: 90 # Optional, default is 80
     targets: # Optional target objects, default person
       - car
       - person
