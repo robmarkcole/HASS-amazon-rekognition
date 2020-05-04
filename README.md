@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected `target` objects in the image, and the default target is `Person`. Note that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service.
+Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, and the default target is `person`. Note that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service.
 
 **Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Image for free. Upon sign-up, new Amazon Rekognition customers can analyze 5,000 images per month for the first 12 months. After that price is around $1 for 1000 images.
 
@@ -20,7 +20,7 @@ image_processing:
     save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
     save_timestamped_file: True # Set True to save timestamped images, default False
     confidence: 90 # Optional, default is 80. Only used for bounding boxes atm
-    targets: # Optional target object, default person
+    targets: # Optional target objects, default person
       - car
       - person
     source:
