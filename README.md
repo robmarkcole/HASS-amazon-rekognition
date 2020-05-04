@@ -35,10 +35,6 @@ If you set a `save_file_folder` an image will be stored with bounding boxes draw
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/development/usage.png" width="800">
 </p>
 
-<p align="center">
-<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/development/card.png" width="400">
-</p>
-
 ## Community guides
 Here you can find community made guides, tutorials & videos about how to install/use this Amazon Rekognition integration. If you find more links let us know.
 * Object Detection in Home Assistant with Amazon Rekognition [video tutorial](https://youtu.be/1G8tnhw2N_Y) and the [full article](https://peyanski.com/amazon-rekognition-in-home-assistant)
