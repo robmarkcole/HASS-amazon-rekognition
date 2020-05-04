@@ -49,8 +49,8 @@ SUPPORTED_REGIONS = [
 ]
 
 CONF_SAVE_FILE_FOLDER = "save_file_folder"
-CONF_TARGET = "target"
-DEFAULT_TARGET = "Person"
+CONF_TARGETS = "targets"
+DEFAULT_TARGETS = ["person"]
 
 CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
@@ -65,7 +65,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_REGION, default=DEFAULT_REGION): vol.In(SUPPORTED_REGIONS),
         vol.Required(CONF_ACCESS_KEY_ID): cv.string,
         vol.Required(CONF_SECRET_ACCESS_KEY): cv.string,
-        vol.Optional(CONF_TARGET, default=DEFAULT_TARGET): cv.string,
+        vol.Optional(CONF_TARGETS, default=DEFAULT_TARGETS): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
         vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES): vol.All(
@@ -75,7 +77,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-def get_label_instances(response, target, confidence_threshold):
+def get_object_instances(
+    response: str, target: str, confidence_threshold: float
+) -> int:
     """Get the number of instances of a target label above the confidence threshold."""
     for label in response["Labels"]:
         if (
@@ -88,19 +92,20 @@ def get_label_instances(response, target, confidence_threshold):
     return 0
 
 
-def parse_labels(response):
+def parse_labels(response: str) -> dict:
     """Parse the API labels data, returning objects only."""
     return {
-        label["Name"]: round(label["Confidence"], 2) for label in response["Labels"]
+        label["Name"].lower(): round(label["Confidence"], 1)
+        for label in response["Labels"]
     }
 
 
-def get_valid_filename(name):
+def get_valid_filename(name: str) -> str:
     return re.sub(r"(?u)[^-\w.]", "", str(name).strip().replace(" ", "_"))
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
-    """Set up Rekognition."""
+    """Set up ObjectDetection."""
 
     import boto3
 
@@ -134,13 +139,15 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     if save_file_folder:
         save_file_folder = Path(save_file_folder)
 
+    targets = [t.lower() for t in config[CONF_TARGETS]]  # ensure lower case
+
     entities = []
     for camera in config[CONF_SOURCE]:
         entities.append(
-            Rekognition(
+            ObjectDetection(
                 client,
                 config[CONF_REGION],
-                config[CONF_TARGET],
+                targets,
                 config[ATTR_CONFIDENCE],
                 save_file_folder,
                 config[CONF_SAVE_TIMESTAMPTED_FILE],
@@ -151,14 +158,14 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     add_devices(entities)
 
 
-class Rekognition(ImageProcessingEntity):
+class ObjectDetection(ImageProcessingEntity):
     """Perform object and label recognition."""
 
     def __init__(
         self,
         client,
         region,
-        target,
+        targets,
         confidence,
         save_file_folder,
         save_timestamped_file,
@@ -168,7 +175,8 @@ class Rekognition(ImageProcessingEntity):
         """Init with the client."""
         self._client = client
         self._region = region
-        self._target = target
+        self._targets = targets
+        self._targets_found = [0] * len(self._targets)
         self._confidence = confidence
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
@@ -177,7 +185,7 @@ class Rekognition(ImageProcessingEntity):
             self._name = name
         else:
             entity_name = split_entity_id(camera_entity)[1]
-            self._name = "{} {} {}".format("rekognition", target, entity_name)
+            self._name = f"rekognition_{entity_name}"
         self._state = None  # The number of instances of interest
         self._last_detection = None  # The last time we detected something
         self._labels = {}  # The parsed label data
@@ -186,10 +194,16 @@ class Rekognition(ImageProcessingEntity):
         """Process an image."""
         self._state = None
         self._labels = {}
+        self._targets_found = [0] * len(self._targets)
 
         response = self._client.detect_labels(Image={"Bytes": image})
-        self._state = get_label_instances(response, self._target, self._confidence)
         self._labels = parse_labels(response)
+        for i, target in enumerate(self._targets):
+            self._targets_found[i] = get_object_instances(
+                response, target, self._confidence
+            )
+
+        self._state = sum(self._targets_found)
 
         if self._state > 0:
             self._last_detection = dt_util.now().strftime(DATETIME_FORMAT)
@@ -198,7 +212,7 @@ class Rekognition(ImageProcessingEntity):
             self.save_image(
                 image,
                 response,
-                self._target,
+                self._targets,
                 self._confidence,
                 self._save_file_folder,
                 self._name,
@@ -218,9 +232,9 @@ class Rekognition(ImageProcessingEntity):
     def device_state_attributes(self):
         """Return device specific state attributes."""
         attr = self._labels
-        attr["target"] = self._target
+        attr[f"targets"] = self._targets
         if self._last_detection:
-            attr[f"last_{self._target.lower()}"] = self._last_detection
+            attr[f"last_target_detection"] = self._last_detection
         return attr
 
     @property
@@ -233,17 +247,20 @@ class Rekognition(ImageProcessingEntity):
         """Return the polling state."""
         return False
 
-    def save_image(self, image, response, target, confidence, directory, camera_entity):
+    def save_image(
+        self, image, response, targets, confidence, directory, camera_entity
+    ):
         """Draws the actual bounding box of the detected objects."""
         try:
             img = Image.open(io.BytesIO(bytearray(image))).convert("RGB")
         except UnidentifiedImageError:
-            _LOGGER.warning("Sighthound unable to process image, bad data")
+            _LOGGER.warning("Rekognition unable to process image, bad data")
             return
         draw = ImageDraw.Draw(img)
 
         for label in response["Labels"]:
-            if (label["Confidence"] < confidence) or (label["Name"] != target):
+            object_name = label["Name"].lower()
+            if (label["Confidence"] < confidence) or (object_name not in targets):
                 continue
 
             for instance in label["Instances"]:
@@ -252,7 +269,7 @@ class Rekognition(ImageProcessingEntity):
                 x, y, w, h = box["Left"], box["Top"], box["Width"], box["Height"]
                 x_max, y_max = x + w, y + h
 
-                box_label = f'{label["Name"]}: {label["Confidence"]:.1f}%'
+                box_label = f'{object_name}: {label["Confidence"]:.1f}%'
                 draw_box(
                     draw, (y, x, y_max, x_max), img.width, img.height, text=box_label,
                 )
@@ -265,4 +282,4 @@ class Rekognition(ImageProcessingEntity):
         if self._save_timestamped_file:
             timestamp_save_path = directory / f"{self._name}_{self._last_detection}.jpg"
             img.save(timestamp_save_path)
-            _LOGGER.info("Deepstack saved file %s", timestamp_save_path)
+            _LOGGER.info("Rekognition saved file %s", timestamp_save_path)
