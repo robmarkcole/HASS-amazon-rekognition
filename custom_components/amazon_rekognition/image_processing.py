@@ -97,6 +97,7 @@ def parse_labels(response: str) -> dict:
     return {
         label["Name"].lower(): round(label["Confidence"], 1)
         for label in response["Labels"]
+        if len(label["Instances"]) > 0
     }
 
 
