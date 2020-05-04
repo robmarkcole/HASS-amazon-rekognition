@@ -50,7 +50,7 @@ SUPPORTED_REGIONS = [
 
 CONF_SAVE_FILE_FOLDER = "save_file_folder"
 CONF_TARGET = "target"
-DEFAULT_TARGET = "Person"
+DEFAULT_TARGET = "person"
 
 CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
@@ -91,7 +91,8 @@ def get_label_instances(response, target, confidence_threshold):
 def parse_labels(response):
     """Parse the API labels data, returning objects only."""
     return {
-        label["Name"]: round(label["Confidence"], 2) for label in response["Labels"]
+        label["Name"].lower(): round(label["Confidence"], 1)
+        for label in response["Labels"]
     }
 
 
@@ -168,7 +169,7 @@ class Rekognition(ImageProcessingEntity):
         """Init with the client."""
         self._client = client
         self._region = region
-        self._target = target
+        self._target = target.lower()
         self._confidence = confidence
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
@@ -220,7 +221,7 @@ class Rekognition(ImageProcessingEntity):
         attr = self._labels
         attr["target"] = self._target
         if self._last_detection:
-            attr[f"last_{self._target.lower()}"] = self._last_detection
+            attr[f"last_{self._target}"] = self._last_detection
         return attr
 
     @property
