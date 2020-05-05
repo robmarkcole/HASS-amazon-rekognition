@@ -194,7 +194,7 @@ class ObjectDetection(ImageProcessingEntity):
     def process_image(self, image):
         """Process an image."""
         self._state = None
-        self._labels = {}
+        self._objects = {}
         self._targets_found = [0] * len(self._targets)
 
         response = self._client.detect_labels(Image={"Bytes": image})
