@@ -1,13 +1,14 @@
 # Amazon Rekognition for Home Assistant
-
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, and the default target is `person`. Note that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service.
+Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, and the default target is `person`. Multiple targets can be listed, in which case the state is the total number of any targets detected. The time that any target object was las detected is available as an attribute. 
+
+**Note** that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service.
 
 **Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Image for free. Upon sign-up, new Amazon Rekognition customers can analyze 5,000 images per month for the first 12 months. After that price is around $1 for 1000 images.
 
-## Component setup
-For advice on getting your Amazon credentials see the [Polly docs](https://www.home-assistant.io/components/tts.amazon_polly/). The number and type of all objects discovered are listed in the sensor attributes.
+## Integration setup
+For advice on getting your Amazon credentials see the [Polly docs](https://www.home-assistant.io/components/tts.amazon_polly/).
 
 Place the `custom_components` folder in your configuration directory (or add its contents to an existing custom_components folder). Add to your `configuration.yaml`:
 
@@ -19,7 +20,7 @@ image_processing:
     region_name: eu-west-1 # optional region, default is us-east-1
     save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
     save_timestamped_file: True # Set True to save timestamped images, default False
-    confidence: 90 # Optional, default is 80
+    confidence: 90 # Optional, default is 80 percent
     targets: # Optional target objects, default person
       - car
       - person
@@ -29,10 +30,10 @@ image_processing:
 
 ### Bounding box
 
-If you set a `save_file_folder` an image will be stored with bounding boxes drawn around the objects that have own (as in, AWS returned them). The `confidence` level is used to decide what boxes should be drawn (by default this is everything above 80%).
+If you configure `save_file_folder` an image will be stored with bounding boxes drawn around target objects. Boxes will only be drawn for objects where the detection confidence is above the configured `confidence` (default 80%).
 
 <p align="center">
-<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/development/usage.png" width="800">
+<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="800">
 </p>
 
 ## Community guides
@@ -40,6 +41,7 @@ Here you can find community made guides, tutorials & videos about how to install
 * Object Detection in Home Assistant with Amazon Rekognition [video tutorial](https://youtu.be/1G8tnhw2N_Y) and the [full article](https://peyanski.com/amazon-rekognition-in-home-assistant)
 
 ## Development
+Currently only the helper functions are tested, using pytest.
 * `python3 -m venv venv`
 * `source venv/bin/activate`
 * `pip install -r requirements-dev.txt`
