@@ -270,7 +270,7 @@ class ObjectDetection(ImageProcessingEntity):
                 x, y, w, h = box["Left"], box["Top"], box["Width"], box["Height"]
                 x_max, y_max = x + w, y + h
 
-                box_label = f'{object_name}: {label["Confidence"]:.1f}%'
+                box_label = f'{object_name}: {instance["Confidence"]:.1f}%'
                 draw_box(
                     draw, (y, x, y_max, x_max), img.width, img.height, text=box_label,
                 )
