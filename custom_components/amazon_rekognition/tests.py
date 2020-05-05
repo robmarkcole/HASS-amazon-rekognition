@@ -1,5 +1,5 @@
 """The tests for the Amazon Rekognition component."""
-from .image_processing import get_label_instances, parse_labels
+from .image_processing import get_object_instances, parse_labels
 
 MOCK_TARGET = "Car"
 MOCK_HIGH_CONFIDENCE = 80.0
@@ -20,13 +20,13 @@ MOCK_RESPONSE = {
     ]
 }
 
-PARSED_RESPONSE = {"Car": 99.03}
+PARSED_RESPONSE = {"car": 99.0}
 
 
 def test_parse_labels():
     assert parse_labels(MOCK_RESPONSE) == PARSED_RESPONSE
 
 
-def test_get_label_instances():
-    assert get_label_instances(MOCK_RESPONSE, MOCK_TARGET, MOCK_HIGH_CONFIDENCE) == 1
-    assert get_label_instances(MOCK_RESPONSE, MOCK_TARGET, MOCK_LOW_CONFIDENCE) == 2
+def test_get_object_instances():
+    assert get_object_instances(MOCK_RESPONSE, MOCK_TARGET, MOCK_HIGH_CONFIDENCE) == 1
+    assert get_object_instances(MOCK_RESPONSE, MOCK_TARGET, MOCK_LOW_CONFIDENCE) == 2
