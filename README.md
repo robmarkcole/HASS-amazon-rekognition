@@ -29,12 +29,30 @@ image_processing:
 ```
 
 ### Bounding box
-
 If you configure `save_file_folder` an image will be stored with bounding boxes drawn around target objects. Boxes will only be drawn for objects where the detection confidence is above the configured `confidence` (default 80%).
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="1000">
 </p>
+
+## Automation
+I am using an automation to send a photo notification when there is a new detection. This requires you to setup the [folder_watcher](https://www.home-assistant.io/integrations/folder_watcher/) integration first. Then in `automations.yaml` I have:
+
+```yaml
+- id: '3287784389530'
+  alias: Rekognition person alert
+  trigger:
+    event_type: folder_watcher
+    platform: event
+    event_data:
+      event_type: modified
+      path: '/config/www/rekognition_my_cam_latest.jpg'
+  action:
+    service: telegram_bot.send_photo
+    data_template:
+      caption: Person detected by rekognition
+      file: '/config/www/rekognition_my_cam_latest.jpg'
+```
 
 ## Community guides
 Here you can find community made guides, tutorials & videos about how to install/use this Amazon Rekognition integration. If you find more links let us know.
