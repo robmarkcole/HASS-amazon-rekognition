@@ -80,7 +80,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 def get_object_instances(
     response: str, target: str, confidence_threshold: float
 ) -> int:
-    """Get the number of instances of a target label above the confidence threshold."""
+    """Get the number of instances of a target object above the confidence threshold."""
     for label in response["Labels"]:
         if (
             label["Name"].lower() == target.lower()
@@ -88,15 +88,16 @@ def get_object_instances(
             confident_labels = [
                 l for l in label["Instances"] if l["Confidence"] > confidence_threshold
             ]
-            return len(confident_labels)
-    return 0
+            return confident_labels
+    return []
 
 
-def parse_labels(response: str) -> dict:
-    """Parse the API labels data, returning objects only."""
+def get_objects(response: str) -> dict:
+    """Parse the data, returning detected objects only."""
     return {
         label["Name"].lower(): round(label["Confidence"], 1)
         for label in response["Labels"]
+        if len(label["Instances"]) > 0
     }
 
 
@@ -176,7 +177,7 @@ class ObjectDetection(ImageProcessingEntity):
         self._client = client
         self._region = region
         self._targets = targets
-        self._targets_found = [0] * len(self._targets)
+        self._targets_found = [0] * len(self._targets)  #  for counting found targets
         self._confidence = confidence
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
@@ -187,8 +188,8 @@ class ObjectDetection(ImageProcessingEntity):
             entity_name = split_entity_id(camera_entity)[1]
             self._name = f"rekognition_{entity_name}"
         self._state = None  # The number of instances of interest
-        self._last_detection = None  # The last time we detected something
-        self._labels = {}  # The parsed label data
+        self._last_detection = None  # The last time we detected a target
+        self._objects = {}  # The parsed label data
 
     def process_image(self, image):
         """Process an image."""
@@ -197,10 +198,10 @@ class ObjectDetection(ImageProcessingEntity):
         self._targets_found = [0] * len(self._targets)
 
         response = self._client.detect_labels(Image={"Bytes": image})
-        self._labels = parse_labels(response)
+        self._objects = get_objects(response)
         for i, target in enumerate(self._targets):
-            self._targets_found[i] = get_object_instances(
-                response, target, self._confidence
+            self._targets_found[i] = len(
+                get_object_instances(response, target, self._confidence)
             )
 
         self._state = sum(self._targets_found)
@@ -231,7 +232,7 @@ class ObjectDetection(ImageProcessingEntity):
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
-        attr = self._labels
+        attr = self._objects
         attr[f"targets"] = self._targets
         if self._last_detection:
             attr[f"last_target_detection"] = self._last_detection
