@@ -1,7 +1,7 @@
 # Amazon Rekognition for Home Assistant
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, and the default target is `person`. Multiple targets can be listed, in which case the state is the total number of any targets detected. The time that any target object was las detected is available as an attribute. 
+Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, and the default target is `person`. Multiple targets can be listed, in which case the state is the total number of any targets detected. The time that any target object was las detected is available as an attribute. Optionally a region of interest (roi) can be configured, and only objects with their center (represented by a `x`) will be included in the state count. The roi will be displayed as a green box, and objects with their center in the roi have a red box. Objects with their center outside the roi have a yellow box.
 
 **Note** that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service.
 

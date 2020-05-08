@@ -299,6 +299,27 @@ class ObjectDetection(ImageProcessingEntity):
         """Return the polling state."""
         return False
 
+    def object_in_roi(self, object_instance : dict) -> bool:
+        """Check if object is within ROI"""
+        box = instance["BoundingBox"]
+
+        x_min, y_min, box_w, box_h = (
+            box["Left"],
+            box["Top"],
+            box["Width"],
+            box["Height"],
+        )
+        x_max, y_max = x_min + box_w, y_min + box_h
+        box_center_x = x_min + box_w / 2
+        box_center_y = y_min + box_h / 2
+
+        # Check if box center is in ROI and select colour
+        target_center_point = Point(box_center_y, box_center_x)
+        roi_box = Box(
+            self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max
+        )
+        return point_in_box(roi_box, target_center_point): 
+
     def save_image(
         self, image, response, targets, confidence, directory, camera_entity
     ):
