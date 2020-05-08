@@ -1,6 +1,7 @@
 """
 Platform that will perform object detection.
 """
+from collections import namedtuple
 import io
 import logging
 import re
@@ -28,6 +29,20 @@ _LOGGER = logging.getLogger(__name__)
 CONF_REGION = "region_name"
 CONF_ACCESS_KEY_ID = "aws_access_key_id"
 CONF_SECRET_ACCESS_KEY = "aws_secret_access_key"
+
+DEFAULT_ROI_YMIN = 0.0
+DEFAULT_ROI_YMAX = 1.0
+DEFAULT_ROI_XMIN = 0.0
+DEFAULT_ROI_XMAX = 1.0
+DEFAULT_ROI = (DEFAULT_ROI_YMIN, DEFAULT_ROI_XMIN, DEFAULT_ROI_YMAX, DEFAULT_ROI_XMAX)
+
+
+# rgb(red, green, blue)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
+
 
 DEFAULT_REGION = "us-east-1"
 SUPPORTED_REGIONS = [
@@ -75,6 +90,22 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
     }
 )
+
+
+Box = namedtuple("Box", "y_min x_min y_max x_max")
+Point = namedtuple("Point", "y x")
+
+roi_x_min = 0.35
+roi_x_max = 0.8
+roi_y_min = 0.4
+roi_y_max = 0.8
+
+
+def point_in_box(box: Box, point: Point) -> bool:
+    """Return true if point lies in box"""
+    if (box.x_min <= point.x <= box.x_max) and (box.y_min <= point.y <= box.y_max):
+        return True
+    return False
 
 
 def get_object_instances(
@@ -259,6 +290,13 @@ class ObjectDetection(ImageProcessingEntity):
             return
         draw = ImageDraw.Draw(img)
 
+        # Draw ROI only if configured and not default
+        roi = (roi_y_min, roi_x_min, roi_y_max, roi_x_max)
+        if roi != DEFAULT_ROI:
+            draw_box(
+                draw, roi, img.width, img.height, text="ROI", color=GREEN,
+            )
+
         for label in response["Labels"]:
             object_name = label["Name"].lower()
             if (label["Confidence"] < confidence) or (object_name not in targets):
@@ -267,12 +305,39 @@ class ObjectDetection(ImageProcessingEntity):
             for instance in label["Instances"]:
                 box = instance["BoundingBox"]
 
-                x, y, w, h = box["Left"], box["Top"], box["Width"], box["Height"]
-                x_max, y_max = x + w, y + h
+                x_min, y_min, box_w, box_h = (
+                    box["Left"],
+                    box["Top"],
+                    box["Width"],
+                    box["Height"],
+                )
+                x_max, y_max = x_min + box_w, y_min + box_h
+                box_center_x = x_min + box_w / 2
+                box_center_y = y_min + box_h / 2
+
+                # Check if box center is in ROI and select colour
+                target_center_point = Point(box_center_y, box_center_x)
+                roi_box = Box(roi_y_min, roi_x_min, roi_y_max, roi_x_max)
+                if point_in_box(roi_box, target_center_point):
+                    box_colour = RED
+                else:
+                    box_colour = YELLOW
 
                 box_label = f'{object_name}: {instance["Confidence"]:.1f}%'
                 draw_box(
-                    draw, (y, x, y_max, x_max), img.width, img.height, text=box_label,
+                    draw,
+                    (y_min, x_min, y_max, x_max),
+                    img.width,
+                    img.height,
+                    text=box_label,
+                    color=box_colour,
+                )
+
+                # draw bullseye
+                draw.text(
+                    (box_center_x * img.width, box_center_y * img.height),
+                    text="X",
+                    fill=box_colour,
                 )
 
         latest_save_path = (
