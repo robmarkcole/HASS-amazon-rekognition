@@ -30,18 +30,22 @@ CONF_REGION = "region_name"
 CONF_ACCESS_KEY_ID = "aws_access_key_id"
 CONF_SECRET_ACCESS_KEY = "aws_secret_access_key"
 
-DEFAULT_ROI_YMIN = 0.0
-DEFAULT_ROI_YMAX = 1.0
-DEFAULT_ROI_XMIN = 0.0
-DEFAULT_ROI_XMAX = 1.0
-DEFAULT_ROI = (DEFAULT_ROI_YMIN, DEFAULT_ROI_XMIN, DEFAULT_ROI_YMAX, DEFAULT_ROI_XMAX)
+DEFAULT_ROI_Y_MIN = 0.0
+DEFAULT_ROI_Y_MAX = 1.0
+DEFAULT_ROI_X_MIN = 0.0
+DEFAULT_ROI_X_MAX = 1.0
+DEFAULT_ROI = (
+    DEFAULT_ROI_Y_MIN,
+    DEFAULT_ROI_X_MIN,
+    DEFAULT_ROI_Y_MAX,
+    DEFAULT_ROI_X_MAX,
+)
 
 
 # rgb(red, green, blue)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-YELLOW = (255, 255, 0)
+RED = (255, 0, 0)  # For objects within the ROI
+GREEN = (0, 255, 0)  # For ROI box
+YELLOW = (255, 255, 0)  # For objects outside the ROI
 
 
 DEFAULT_REGION = "us-east-1"
@@ -67,6 +71,11 @@ CONF_SAVE_FILE_FOLDER = "save_file_folder"
 CONF_TARGETS = "targets"
 DEFAULT_TARGETS = ["person"]
 
+CONF_ROI_Y_MIN = "roi_y_min"
+CONF_ROI_X_MIN = "roi_x_min"
+CONF_ROI_Y_MAX = "roi_y_max"
+CONF_ROI_X_MAX = "roi_x_max"
+
 CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
 
@@ -83,6 +92,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_TARGETS, default=DEFAULT_TARGETS): vol.All(
             cv.ensure_list, [cv.string]
         ),
+        vol.Optional(CONF_ROI_Y_MIN, default=DEFAULT_ROI_Y_MIN): cv.small_float,
+        vol.Optional(CONF_ROI_X_MIN, default=DEFAULT_ROI_X_MIN): cv.small_float,
+        vol.Optional(CONF_ROI_Y_MAX, default=DEFAULT_ROI_Y_MAX): cv.small_float,
+        vol.Optional(CONF_ROI_X_MAX, default=DEFAULT_ROI_X_MAX): cv.small_float,
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
         vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES): vol.All(
@@ -94,11 +107,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 Box = namedtuple("Box", "y_min x_min y_max x_max")
 Point = namedtuple("Point", "y x")
-
-roi_x_min = 0.35
-roi_x_max = 0.8
-roi_y_min = 0.4
-roi_y_max = 0.8
 
 
 def point_in_box(box: Box, point: Point) -> bool:
@@ -181,6 +189,10 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
                 config[CONF_REGION],
                 targets,
                 config[ATTR_CONFIDENCE],
+                config[CONF_ROI_Y_MIN],
+                config[CONF_ROI_X_MIN],
+                config[CONF_ROI_Y_MAX],
+                config[CONF_ROI_X_MAX],
                 save_file_folder,
                 config[CONF_SAVE_TIMESTAMPTED_FILE],
                 camera[CONF_ENTITY_ID],
@@ -199,6 +211,10 @@ class ObjectDetection(ImageProcessingEntity):
         region,
         targets,
         confidence,
+        roi_y_min,
+        roi_x_min,
+        roi_y_max,
+        roi_x_max,
         save_file_folder,
         save_timestamped_file,
         camera_entity,
@@ -210,6 +226,10 @@ class ObjectDetection(ImageProcessingEntity):
         self._targets = targets
         self._targets_found = [0] * len(self._targets)  #  for counting found targets
         self._confidence = confidence
+        self._roi_y_min = roi_y_min
+        self._roi_x_min = roi_x_min
+        self._roi_y_max = roi_y_max
+        self._roi_x_max = roi_x_max
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
         self._camera_entity = camera_entity
@@ -291,7 +311,7 @@ class ObjectDetection(ImageProcessingEntity):
         draw = ImageDraw.Draw(img)
 
         # Draw ROI only if configured and not default
-        roi = (roi_y_min, roi_x_min, roi_y_max, roi_x_max)
+        roi = (self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max)
         if roi != DEFAULT_ROI:
             draw_box(
                 draw, roi, img.width, img.height, text="ROI", color=GREEN,
@@ -317,7 +337,9 @@ class ObjectDetection(ImageProcessingEntity):
 
                 # Check if box center is in ROI and select colour
                 target_center_point = Point(box_center_y, box_center_x)
-                roi_box = Box(roi_y_min, roi_x_min, roi_y_max, roi_x_max)
+                roi_box = Box(
+                    self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max
+                )
                 if point_in_box(roi_box, target_center_point):
                     box_colour = RED
                 else:

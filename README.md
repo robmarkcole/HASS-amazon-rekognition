@@ -24,6 +24,10 @@ image_processing:
     targets: # Optional target objects, default person
       - car
       - person
+    roi_x_min: 0.35 # optional, range 0-1, must be less than roi_x_max
+    roi_x_max: 0.8 # optional, range 0-1, must be more than roi_x_min
+    roi_y_min: 0.4 # optional, range 0-1, must be less than roi_y_max
+    roi_y_max: 0.8 # optional, range 0-1, must be more than roi_y_min
     source:
       - entity_id: camera.local_file
 ```
