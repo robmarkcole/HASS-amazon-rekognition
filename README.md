@@ -39,7 +39,7 @@ If you configure `save_file_folder` an image will be stored with bounding boxes 
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="800">
 </p>
 
-To demonstrate how the region of interets (ROI) works, in this example 4 cars are detected, but only the blue car has its center within the ROI (green box). Therefore the state of the sensor is 1. I am using this to check when there is a car parked outside my house, as I am not interested in cars parked elsewhere.
+To demonstrate how the region of interest (ROI) works, in this example 4 cars are detected, but only the blue car has its center within the ROI (green box). Therefore the state of the sensor is 1. I am using this to check when there is a car parked outside my house, as I am not interested in cars parked elsewhere.
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/camera-view.png" width="1000">
