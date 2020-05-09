@@ -32,6 +32,8 @@ image_processing:
       - entity_id: camera.local_file
 ```
 
+For the ROI, the (x=0,y=0) position is the top left pixel of the image, and the (x=1,y=1) position is the bottom right pixel of the image. It might seem a bit odd to have y running from top to bottom of the image, but that is the [coordinate system used by pillow](https://pillow.readthedocs.io/en/3.1.x/handbook/concepts.html#coordinate-system).
+
 ### Bounding box
 If you configure `save_file_folder` an image will be stored with bounding boxes drawn around target objects. Boxes will only be drawn for objects where the detection confidence is above the configured `confidence` (default 80%).
 
