@@ -115,29 +115,47 @@ def point_in_box(box: Box, point: Point) -> bool:
         return True
     return False
 
-
-def get_object_instances(
-    response: str, target: str, confidence_threshold: float
-) -> int:
-    """Get the number of instances of a target object above the confidence threshold."""
-    for label in response["Labels"]:
-        if (
-            label["Name"].lower() == target.lower()
-        ):  # Lowercase both to prevent any comparing issues
-            confident_labels = [
-                l for l in label["Instances"] if l["Confidence"] > confidence_threshold
-            ]
-            return confident_labels
-    return []
-
-
 def get_objects(response: str) -> dict:
     """Parse the data, returning detected objects only."""
-    return {
-        label["Name"].lower(): round(label["Confidence"], 1)
-        for label in response["Labels"]
-        if len(label["Instances"]) > 0
-    }
+    objects = []
+    decimal_places = 3
+    
+    for label in response["Labels"]:
+        if len(label["Instances"]) > 0:
+            for instance in label["Instances"]:
+                # Extract and format instance data
+                box = instance['BoundingBox']
+                # Get bounding box
+                x_min, y_min, width, height = box["Left"], box["Top"], box["Width"], box["Height"]
+                x_max, y_max = x_min + width, y_min + height
+                
+                bounding_box = {
+                    'x_min':round(x_min, decimal_places),
+                    'y_min':round(y_min, decimal_places),
+                    'x_max':round(x_max, decimal_places),
+                    'y_max':round(y_max, decimal_places),
+                    'width':round(box["Width"], decimal_places),
+                    'height':round(box["Height"], decimal_places),
+                }
+                
+                # Get box area (% of frame)
+                box_area = width * height * 100
+
+                # Get box centroid
+                centroid_x, centroid_y = (x_min + width/2), (y_min + height/2)
+                centroid =  {
+                    'x':round(centroid_x, decimal_places),
+                    'y':round(centroid_y, decimal_places)
+                }
+                
+                objects.append(
+                    {'name':label["Name"].lower(),
+                     'confidence':round(instance["Confidence"], decimal_places),
+                     'bounding_box':bounding_box,
+                     'box_area': round(box_area, decimal_places),
+                     'centroid':centroid}
+                )
+    return objects
 
 
 def get_valid_filename(name: str) -> str:
@@ -356,11 +374,7 @@ class ObjectDetection(ImageProcessingEntity):
                 box_center_x = x_min + box_w / 2
                 box_center_y = y_min + box_h / 2
 
-                # Check if box center is in ROI and select colour
-                target_center_point = Point(box_center_y, box_center_x)
-                roi_box = Box(
-                    self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max
-                )
+
                 if point_in_box(roi_box, target_center_point):
                     box_colour = RED
                 else:
