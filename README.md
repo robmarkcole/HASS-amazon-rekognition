@@ -1,7 +1,7 @@
 # Amazon Rekognition for Home Assistant
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, and the default target is `person`. Multiple targets can be listed, in which case the state is the total number of any targets detected. The time that any target object was las detected is available as an attribute. Optionally a region of interest (roi) can be configured, and only objects with their center (represented by a `x`) will be included in the state count. The roi will be displayed as a green box, and objects with their center in the roi have a red box. Objects with their center outside the roi have a yellow box.
+Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, which match the configured conditions. The default target is `person`, but multiple targets can be listed, in which case the state is the total number of any targets detected. The time that any target object was las detected is available as an attribute. Optionally a region of interest (ROI) can be configured, and only objects with their center (represented by a `x`) will be included in the state count. The ROI will be displayed as a green box, and objects with their center in the ROI have a red box. Objects with their center outside the ROI have a yellow box.
 
 **Note** that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service.
 
@@ -37,6 +37,10 @@ If you configure `save_file_folder` an image will be stored with bounding boxes 
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="1000">
+</p>
+
+<p align="center">
+<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/camera-view.png" width="1000">
 </p>
 
 ## Automation
