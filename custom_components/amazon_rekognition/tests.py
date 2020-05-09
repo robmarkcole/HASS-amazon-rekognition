@@ -1,5 +1,5 @@
 """The tests for the Amazon Rekognition component."""
-from .image_processing import get_object_instances, get_objects
+from .image_processing import get_objects
 
 TARGET = "person"
 MOCK_HIGH_CONFIDENCE = 95.0
@@ -158,17 +158,21 @@ MOCK_RESPONSE = {
 }
 
 PARSED_RESPONSE = {
-    "bicycle": 99.9,
-    "car": 99.4,
-    "person": 99.9,
-    "shoe": 97.6,
+    "bounding_box": {
+        "height": 0.548,
+        "width": 0.076,
+        "x_max": 0.951,
+        "x_min": 0.875,
+        "y_max": 0.84,
+        "y_min": 0.292,
+    },
+    "box_area": 4.163,
+    "centroid": {"x": 0.913, "y": 0.566},
+    "confidence": 99.853,
+    "name": "person",
 }
 
 
 def test_get_objects():
-    assert get_objects(MOCK_RESPONSE) == PARSED_RESPONSE
-
-
-def test_get_object_instances():
-    assert len(get_object_instances(MOCK_RESPONSE, TARGET, MOCK_HIGH_CONFIDENCE)) == 1
-    assert len(get_object_instances(MOCK_RESPONSE, TARGET, MOCK_LOW_CONFIDENCE)) == 2
+    assert len(get_objects(MOCK_RESPONSE)) == 5
+    assert get_objects(MOCK_RESPONSE)[0] == PARSED_RESPONSE
