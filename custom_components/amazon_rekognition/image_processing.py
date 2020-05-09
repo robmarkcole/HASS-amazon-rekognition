@@ -115,45 +115,53 @@ def point_in_box(box: Box, point: Point) -> bool:
         return True
     return False
 
+
 def get_objects(response: str) -> dict:
     """Parse the data, returning detected objects only."""
     objects = []
     decimal_places = 3
-    
+
     for label in response["Labels"]:
         if len(label["Instances"]) > 0:
             for instance in label["Instances"]:
                 # Extract and format instance data
-                box = instance['BoundingBox']
+                box = instance["BoundingBox"]
                 # Get bounding box
-                x_min, y_min, width, height = box["Left"], box["Top"], box["Width"], box["Height"]
+                x_min, y_min, width, height = (
+                    box["Left"],
+                    box["Top"],
+                    box["Width"],
+                    box["Height"],
+                )
                 x_max, y_max = x_min + width, y_min + height
-                
+
                 bounding_box = {
-                    'x_min':round(x_min, decimal_places),
-                    'y_min':round(y_min, decimal_places),
-                    'x_max':round(x_max, decimal_places),
-                    'y_max':round(y_max, decimal_places),
-                    'width':round(box["Width"], decimal_places),
-                    'height':round(box["Height"], decimal_places),
+                    "x_min": round(x_min, decimal_places),
+                    "y_min": round(y_min, decimal_places),
+                    "x_max": round(x_max, decimal_places),
+                    "y_max": round(y_max, decimal_places),
+                    "width": round(box["Width"], decimal_places),
+                    "height": round(box["Height"], decimal_places),
                 }
-                
+
                 # Get box area (% of frame)
                 box_area = width * height * 100
 
                 # Get box centroid
-                centroid_x, centroid_y = (x_min + width/2), (y_min + height/2)
-                centroid =  {
-                    'x':round(centroid_x, decimal_places),
-                    'y':round(centroid_y, decimal_places)
+                centroid_x, centroid_y = (x_min + width / 2), (y_min + height / 2)
+                centroid = {
+                    "x": round(centroid_x, decimal_places),
+                    "y": round(centroid_y, decimal_places),
                 }
-                
+
                 objects.append(
-                    {'name':label["Name"].lower(),
-                     'confidence':round(instance["Confidence"], decimal_places),
-                     'bounding_box':bounding_box,
-                     'box_area': round(box_area, decimal_places),
-                     'centroid':centroid}
+                    {
+                        "name": label["Name"].lower(),
+                        "confidence": round(instance["Confidence"], decimal_places),
+                        "bounding_box": bounding_box,
+                        "box_area": round(box_area, decimal_places),
+                        "centroid": centroid,
+                    }
                 )
     return objects
 
@@ -204,7 +212,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         entities.append(
             ObjectDetection(
                 client,
-                config[CONF_aws_REGION],
+                config[CONF_REGION],
                 targets,
                 config[ATTR_CONFIDENCE],
                 config[CONF_ROI_Y_MIN],
@@ -258,18 +266,22 @@ class ObjectDetection(ImageProcessingEntity):
         self._state = None  # The number of instances of interest
         self._last_detection = None  # The last time we detected a target
         self._objects = []  # The parsed raw data
-        self._targets_found = [] # The filtered targets data
+        self._targets_found = []  # The filtered targets data
 
     def process_image(self, image):
         """Process an image."""
         self._state = None
         self._objects = []
-        self._targets_found = [] # The filtered targets data
+        self._targets_found = []  # The filtered targets data
 
         response = self._aws_client.detect_labels(Image={"Bytes": image})
         self._objects = get_objects(response)
-        self._targets_found = [obj for obj in self._objects if (obj['name'] in self._targets) and (obj['confidence'] > self._confidence)]
-        self._state = sum(len(self._targets_found))
+        self._targets_found = [
+            obj
+            for obj in self._objects
+            if (obj["name"] in self._targets) and (obj["confidence"] > self._confidence)
+        ]
+        self._state = len(self._targets_found)
 
         if self._state > 0:
             self._last_detection = dt_util.now().strftime(DATETIME_FORMAT)
@@ -312,14 +324,14 @@ class ObjectDetection(ImageProcessingEntity):
         """Return the polling state."""
         return False
 
-    def object_in_roi(self, centroid : dict) -> bool:
+    def object_in_roi(self, centroid: dict) -> bool:
         """Helper to create the Point and Box."""
 
-        target_center_point = Point(centroid['y'], centroid['x'])
+        target_center_point = Point(centroid["y"], centroid["x"])
         roi_box = Box(
             self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max
         )
-        return point_in_box(roi_box, target_center_point): 
+        return point_in_box(roi_box, target_center_point)
 
     def save_image(
         self, image, response, targets, confidence, directory, camera_entity
@@ -333,27 +345,32 @@ class ObjectDetection(ImageProcessingEntity):
         draw = ImageDraw.Draw(img)
 
         # Draw ROI only if configured and not default
-        roi = (self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max) # Tuple
+        roi = (
+            self._roi_y_min,
+            self._roi_x_min,
+            self._roi_y_max,
+            self._roi_x_max,
+        )  # Tuple
         if roi != DEFAULT_ROI:
             draw_box(
                 draw, roi, img.width, img.height, text="ROI", color=GREEN,
             )
 
         for obj in self._targets_found:
-            name = obj['name']
-            confidence = obj['confidence']
-            box = obj['bounding_box']
-            centroid = obj['centroid']
+            name = obj["name"]
+            confidence = obj["confidence"]
+            box = obj["bounding_box"]
+            centroid = obj["centroid"]
 
-            if point_in_box(roi, centroid):
+            if self.object_in_roi(centroid):
                 box_colour = RED
             else:
                 box_colour = YELLOW
 
-            box_label = f'{name}: {confidence:.1f}%'
+            box_label = f"{name}: {confidence:.1f}%"
             draw_box(
                 draw,
-                (box['y_min'], box['x_min'], box['y_max'], box['x_max']),
+                (box["y_min"], box["x_min"], box["y_max"], box["x_max"]),
                 img.width,
                 img.height,
                 text=box_label,
@@ -362,7 +379,7 @@ class ObjectDetection(ImageProcessingEntity):
 
             # draw bullseye
             draw.text(
-                (centroid['x'] * img.width, centroid['y'] * img.height),
+                (centroid["x"] * img.width, centroid["y"] * img.height),
                 text="X",
                 fill=box_colour,
             )
