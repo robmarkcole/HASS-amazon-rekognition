@@ -204,7 +204,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         entities.append(
             ObjectDetection(
                 client,
-                config[CONF_REGION],
+                config[CONF_aws_REGION],
                 targets,
                 config[ATTR_CONFIDENCE],
                 config[CONF_ROI_Y_MIN],
@@ -239,10 +239,9 @@ class ObjectDetection(ImageProcessingEntity):
         name=None,
     ):
         """Init with the client."""
-        self._client = client
-        self._region = region
+        self._aws_client = client
+        self._aws_region = region
         self._targets = targets
-        self._targets_found = [0] * len(self._targets)  #  for counting found targets
         self._confidence = confidence
         self._roi_y_min = roi_y_min
         self._roi_x_min = roi_x_min
@@ -258,22 +257,19 @@ class ObjectDetection(ImageProcessingEntity):
             self._name = f"rekognition_{entity_name}"
         self._state = None  # The number of instances of interest
         self._last_detection = None  # The last time we detected a target
-        self._objects = {}  # The parsed label data
+        self._objects = []  # The parsed raw data
+        self._targets_found = [] # The filtered targets data
 
     def process_image(self, image):
         """Process an image."""
         self._state = None
-        self._objects = {}
-        self._targets_found = [0] * len(self._targets)
+        self._objects = []
+        self._targets_found = [] # The filtered targets data
 
-        response = self._client.detect_labels(Image={"Bytes": image})
+        response = self._aws_client.detect_labels(Image={"Bytes": image})
         self._objects = get_objects(response)
-        for i, target in enumerate(self._targets):
-            self._targets_found[i] = len(
-                get_object_instances(response, target, self._confidence)
-            )
-
-        self._state = sum(self._targets_found)
+        self._targets_found = [obj for obj in self._objects if (obj['name'] in self._targets) and (obj['confidence'] > self._confidence)]
+        self._state = sum(len(self._targets_found))
 
         if self._state > 0:
             self._last_detection = dt_util.now().strftime(DATETIME_FORMAT)
@@ -301,10 +297,9 @@ class ObjectDetection(ImageProcessingEntity):
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
-        attr = self._objects
-        attr[f"targets"] = self._targets
-        if self._last_detection:
-            attr[f"last_target_detection"] = self._last_detection
+        attr = {}
+        attr[f"targets"] = self._targets_found
+        attr[f"last_target_detection"] = self._last_detection
         return attr
 
     @property
@@ -317,22 +312,10 @@ class ObjectDetection(ImageProcessingEntity):
         """Return the polling state."""
         return False
 
-    def object_in_roi(self, object_instance : dict) -> bool:
-        """Check if object is within ROI"""
-        box = instance["BoundingBox"]
+    def object_in_roi(self, centroid : dict) -> bool:
+        """Helper to create the Point and Box."""
 
-        x_min, y_min, box_w, box_h = (
-            box["Left"],
-            box["Top"],
-            box["Width"],
-            box["Height"],
-        )
-        x_max, y_max = x_min + box_w, y_min + box_h
-        box_center_x = x_min + box_w / 2
-        box_center_y = y_min + box_h / 2
-
-        # Check if box center is in ROI and select colour
-        target_center_point = Point(box_center_y, box_center_x)
+        target_center_point = Point(centroid['y'], centroid['x'])
         roi_box = Box(
             self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max
         )
@@ -350,52 +333,39 @@ class ObjectDetection(ImageProcessingEntity):
         draw = ImageDraw.Draw(img)
 
         # Draw ROI only if configured and not default
-        roi = (self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max)
+        roi = (self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max) # Tuple
         if roi != DEFAULT_ROI:
             draw_box(
                 draw, roi, img.width, img.height, text="ROI", color=GREEN,
             )
 
-        for label in response["Labels"]:
-            object_name = label["Name"].lower()
-            if (label["Confidence"] < confidence) or (object_name not in targets):
-                continue
+        for obj in self._targets_found:
+            name = obj['name']
+            confidence = obj['confidence']
+            box = obj['bounding_box']
+            centroid = obj['centroid']
 
-            for instance in label["Instances"]:
-                box = instance["BoundingBox"]
+            if point_in_box(roi, centroid):
+                box_colour = RED
+            else:
+                box_colour = YELLOW
 
-                x_min, y_min, box_w, box_h = (
-                    box["Left"],
-                    box["Top"],
-                    box["Width"],
-                    box["Height"],
-                )
-                x_max, y_max = x_min + box_w, y_min + box_h
-                box_center_x = x_min + box_w / 2
-                box_center_y = y_min + box_h / 2
+            box_label = f'{name}: {confidence:.1f}%'
+            draw_box(
+                draw,
+                (box['y_min'], box['x_min'], box['y_max'], box['x_max']),
+                img.width,
+                img.height,
+                text=box_label,
+                color=box_colour,
+            )
 
-
-                if point_in_box(roi_box, target_center_point):
-                    box_colour = RED
-                else:
-                    box_colour = YELLOW
-
-                box_label = f'{object_name}: {instance["Confidence"]:.1f}%'
-                draw_box(
-                    draw,
-                    (y_min, x_min, y_max, x_max),
-                    img.width,
-                    img.height,
-                    text=box_label,
-                    color=box_colour,
-                )
-
-                # draw bullseye
-                draw.text(
-                    (box_center_x * img.width, box_center_y * img.height),
-                    text="X",
-                    fill=box_colour,
-                )
+            # draw bullseye
+            draw.text(
+                (centroid['x'] * img.width, centroid['y'] * img.height),
+                text="X",
+                fill=box_colour,
+            )
 
         latest_save_path = (
             directory / f"{get_valid_filename(self._name).lower()}_latest.jpg"
