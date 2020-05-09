@@ -116,6 +116,13 @@ def point_in_box(box: Box, point: Point) -> bool:
     return False
 
 
+def object_in_roi(roi: dict, centroid: dict) -> bool:
+    """Convenience to convert dicts to the Point and Box."""
+    target_center_point = Point(centroid["y"], centroid["x"])
+    roi_box = Box(roi["y_min"], roi["x_min"], roi["y_max"], roi["x_max"])
+    return point_in_box(roi_box, target_center_point)
+
+
 def get_objects(response: str) -> dict:
     """Parse the data, returning detected objects only."""
     objects = []
@@ -255,6 +262,12 @@ class ObjectDetection(ImageProcessingEntity):
         self._roi_x_min = roi_x_min
         self._roi_y_max = roi_y_max
         self._roi_x_max = roi_x_max
+        self._roi_dict = {
+            "y_min": roi_y_min,
+            "x_min": roi_x_min,
+            "y_max": roi_y_max,
+            "x_max": roi_x_max,
+        }
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
         self._camera_entity = camera_entity
@@ -272,14 +285,16 @@ class ObjectDetection(ImageProcessingEntity):
         """Process an image."""
         self._state = None
         self._objects = []
-        self._targets_found = []  # The filtered targets data
+        self._targets_found = []
 
         response = self._aws_client.detect_labels(Image={"Bytes": image})
         self._objects = get_objects(response)
         self._targets_found = [
             obj
             for obj in self._objects
-            if (obj["name"] in self._targets) and (obj["confidence"] > self._confidence)
+            if (obj["name"] in self._targets)
+            and (obj["confidence"] > self._confidence)
+            and (object_in_roi(self._roi_dict, obj["centroid"]))
         ]
         self._state = len(self._targets_found)
 
@@ -310,8 +325,15 @@ class ObjectDetection(ImageProcessingEntity):
     def device_state_attributes(self):
         """Return device specific state attributes."""
         attr = {}
-        attr[f"targets"] = self._targets_found
-        attr[f"last_target_detection"] = self._last_detection
+        for target in self._targets:
+            attr[f"ROI {target} count"] = len(
+                [t for t in self._targets_found if t["name"] == target]
+            )
+            attr[f"ALL {target} count"] = len(
+                [t for t in self._objects if t["name"] == target]
+            )
+        attr["last_target_detection"] = self._last_detection
+        attr["objects"] = self._objects
         return attr
 
     @property
@@ -323,15 +345,6 @@ class ObjectDetection(ImageProcessingEntity):
     def should_poll(self):
         """Return the polling state."""
         return False
-
-    def object_in_roi(self, centroid: dict) -> bool:
-        """Helper to create the Point and Box."""
-
-        target_center_point = Point(centroid["y"], centroid["x"])
-        roi_box = Box(
-            self._roi_y_min, self._roi_x_min, self._roi_y_max, self._roi_x_max
-        )
-        return point_in_box(roi_box, target_center_point)
 
     def save_image(
         self, image, response, targets, confidence, directory, camera_entity
@@ -356,13 +369,15 @@ class ObjectDetection(ImageProcessingEntity):
                 draw, roi, img.width, img.height, text="ROI", color=GREEN,
             )
 
-        for obj in self._targets_found:
+        for obj in self._objects:
+            if not obj["name"] in self._targets:
+                pass
             name = obj["name"]
             confidence = obj["confidence"]
             box = obj["bounding_box"]
             centroid = obj["centroid"]
 
-            if self.object_in_roi(centroid):
+            if object_in_roi(self._roi_dict, centroid):
                 box_colour = RED
             else:
                 box_colour = YELLOW
