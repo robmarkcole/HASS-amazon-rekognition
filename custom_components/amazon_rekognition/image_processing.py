@@ -176,7 +176,8 @@ def get_objects(response: str) -> dict:
                 )
         else:
             label_info = {
-                label["Name"].lower(): round(label["Confidence"], decimal_places)
+                "name": label["Name"].lower(),
+                "confidence": round(label["Confidence"], decimal_places),
             }
             labels.append(label_info)
     return objects, labels

@@ -56,7 +56,9 @@ Every time an image is processed, two kinds of events are published. The events 
 
 2) `rekognition.label_detected`: contains the name and confidence of each label.
 
-```<Event rekognition.label_detected[L]: human=99.853>```
+```<Event rekognition.label_detected[L]: name=human, confidence=99.853>```
+
+These events can be used to trigger automations, increment counters etc.
 
 ## Automation
 I am using an automation to send a photo notification when there is a new detection. This requires you to setup the [folder_watcher](https://www.home-assistant.io/integrations/folder_watcher/) integration first. Then in `automations.yaml` I have:

@@ -178,4 +178,4 @@ def test_get_objects():
     assert len(objects) == 5
     assert len(labels) == 9
     assert objects[0] == PARSED_RESPONSE
-    assert labels[0] == {"human": 99.853}
+    assert labels[0] == {"name": "human", "confidence": 99.853}
