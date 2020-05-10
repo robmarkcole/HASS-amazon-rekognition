@@ -380,7 +380,7 @@ class ObjectDetection(ImageProcessingEntity):
 
         for obj in self._objects:
             if not obj["name"] in self._targets:
-                pass
+                continue
             name = obj["name"]
             confidence = obj["confidence"]
             box = obj["bounding_box"]
