@@ -174,5 +174,8 @@ PARSED_RESPONSE = {
 
 
 def test_get_objects():
-    assert len(get_objects(MOCK_RESPONSE)) == 5
-    assert get_objects(MOCK_RESPONSE)[0] == PARSED_RESPONSE
+    objects, labels = get_objects(MOCK_RESPONSE)
+    assert len(objects) == 5
+    assert len(labels) == 9
+    assert objects[0] == PARSED_RESPONSE
+    assert labels[0] == {"human": 99.853}
