@@ -126,6 +126,7 @@ def object_in_roi(roi: dict, centroid: dict) -> bool:
 def get_objects(response: str) -> dict:
     """Parse the data, returning detected objects only."""
     objects = []
+    labels = []
     decimal_places = 3
 
     for label in response["Labels"]:
@@ -170,7 +171,12 @@ def get_objects(response: str) -> dict:
                         "centroid": centroid,
                     }
                 )
-    return objects
+        else:
+            label_info = {
+                label["Name"].lower(): round(label["Confidence"], decimal_places)
+            }
+            labels.append(label_info)
+    return objects, labels
 
 
 def get_valid_filename(name: str) -> str:
@@ -279,16 +285,18 @@ class ObjectDetection(ImageProcessingEntity):
         self._state = None  # The number of instances of interest
         self._last_detection = None  # The last time we detected a target
         self._objects = []  # The parsed raw data
+        self._labels = []  # The parsed raw data
         self._targets_found = []  # The filtered targets data
 
     def process_image(self, image):
         """Process an image."""
         self._state = None
         self._objects = []
+        self._labels = []
         self._targets_found = []
 
         response = self._aws_client.detect_labels(Image={"Bytes": image})
-        self._objects = get_objects(response)
+        self._objects, self._labels = get_objects(response)
         self._targets_found = [
             obj
             for obj in self._objects
@@ -334,6 +342,7 @@ class ObjectDetection(ImageProcessingEntity):
             )
         attr["last_target_detection"] = self._last_detection
         attr["objects"] = self._objects
+        attr["labels"] = self._labels
         return attr
 
     @property
