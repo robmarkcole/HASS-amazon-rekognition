@@ -47,6 +47,19 @@ To demonstrate how the region of interest (ROI) works, in this example 4 cars ar
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/camera-view.png" width="1000">
 </p>
 
+## Events
+Every time an image is processed, two kinds of events are published. The events can be viewed in the logs if logger is set to `debug`
+
+1) `rekognition.object_detected`: contains all the data associated with an object.
+
+```<Event rekognition.object_detected[L]: name=person, confidence=99.787, bounding_box=x_min=0.228, y_min=0.258, x_max=0.381, y_max=0.774, width=0.153, height=0.516, box_area=7.905, centroid=x=0.304, y=0.516>```
+
+2) `rekognition.label_detected`: contains the name and confidence of each label.
+
+```<Event rekognition.label_detected[L]: name=human, confidence=99.853>```
+
+These events can be used to trigger automations, increment counters etc.
+
 ## Automation
 I am using an automation to send a photo notification when there is a new detection. This requires you to setup the [folder_watcher](https://www.home-assistant.io/integrations/folder_watcher/) integration first. Then in `automations.yaml` I have:
 

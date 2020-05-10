@@ -79,6 +79,9 @@ CONF_ROI_X_MAX = "roi_x_max"
 CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
 
+EVENT_OBJECT_DETECTED = "rekognition.object_detected"
+EVENT_LABEL_DETECTED = "rekognition.label_detected"
+
 CONF_BOTO_RETRIES = "boto_retries"
 DEFAULT_BOTO_RETRIES = 5
 
@@ -173,7 +176,8 @@ def get_objects(response: str) -> dict:
                 )
         else:
             label_info = {
-                label["Name"].lower(): round(label["Confidence"], decimal_places)
+                "name": label["Name"].lower(),
+                "confidence": round(label["Confidence"], decimal_places),
             }
             labels.append(label_info)
     return objects, labels
@@ -308,6 +312,12 @@ class ObjectDetection(ImageProcessingEntity):
 
         if self._state > 0:
             self._last_detection = dt_util.now().strftime(DATETIME_FORMAT)
+
+        # Fire events
+        for target in self._targets_found:
+            self.hass.bus.fire(EVENT_OBJECT_DETECTED, target)
+        for label in self._labels:
+            self.hass.bus.fire(EVENT_LABEL_DETECTED, label)
 
         if self._save_file_folder and self._state > 0:
             self.save_image(
