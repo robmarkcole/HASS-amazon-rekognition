@@ -351,6 +351,11 @@ class ObjectDetection(ImageProcessingEntity):
         return self._name
 
     @property
+    def unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return ""
+
+    @property
     def should_poll(self):
         """Return the polling state."""
         return False
