@@ -48,7 +48,7 @@ To demonstrate how the region of interest (ROI) works, in this example 4 cars ar
 </p>
 
 ## Events
-Every time an image is processed, two kinds of events are published. The events can be viewed in the logs if logger is set to `debug`
+Every time an image is processed, two kinds of events are published. The events can be viewed via the HA UI from `Developer tools -> EVENTS -> :Listen to events`. The events are:
 
 1) `rekognition.object_detected`: contains all the data associated with an object.
 
