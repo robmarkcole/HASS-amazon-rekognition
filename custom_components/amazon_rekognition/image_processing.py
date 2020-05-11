@@ -1,9 +1,11 @@
 """
 Platform that will perform object detection.
 """
+from collections import namedtuple
 import io
 import logging
 import re
+import time
 from pathlib import Path
 
 from PIL import Image, ImageDraw, UnidentifiedImageError
@@ -28,6 +30,24 @@ CONF_REGION = "region_name"
 CONF_ACCESS_KEY_ID = "aws_access_key_id"
 CONF_SECRET_ACCESS_KEY = "aws_secret_access_key"
 
+DEFAULT_ROI_Y_MIN = 0.0
+DEFAULT_ROI_Y_MAX = 1.0
+DEFAULT_ROI_X_MIN = 0.0
+DEFAULT_ROI_X_MAX = 1.0
+DEFAULT_ROI = (
+    DEFAULT_ROI_Y_MIN,
+    DEFAULT_ROI_X_MIN,
+    DEFAULT_ROI_Y_MAX,
+    DEFAULT_ROI_X_MAX,
+)
+
+
+# rgb(red, green, blue)
+RED = (255, 0, 0)  # For objects within the ROI
+GREEN = (0, 255, 0)  # For ROI box
+YELLOW = (255, 255, 0)  # For objects outside the ROI
+
+
 DEFAULT_REGION = "us-east-1"
 SUPPORTED_REGIONS = [
     "us-east-1",
@@ -48,12 +68,22 @@ SUPPORTED_REGIONS = [
 ]
 
 CONF_SAVE_FILE_FOLDER = "save_file_folder"
-CONF_TARGET = "target"
-DEFAULT_TARGET = "Person"
+CONF_TARGETS = "targets"
+DEFAULT_TARGETS = ["person"]
+
+CONF_ROI_Y_MIN = "roi_y_min"
+CONF_ROI_X_MIN = "roi_x_min"
+CONF_ROI_Y_MAX = "roi_y_max"
+CONF_ROI_X_MAX = "roi_x_max"
 
 CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
 
+EVENT_OBJECT_DETECTED = "rekognition.object_detected"
+EVENT_LABEL_DETECTED = "rekognition.label_detected"
+
+CONF_BOTO_RETRIES = "boto_retries"
+DEFAULT_BOTO_RETRIES = 5
 
 REQUIREMENTS = ["boto3"]
 
@@ -62,41 +92,107 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_REGION, default=DEFAULT_REGION): vol.In(SUPPORTED_REGIONS),
         vol.Required(CONF_ACCESS_KEY_ID): cv.string,
         vol.Required(CONF_SECRET_ACCESS_KEY): cv.string,
-        vol.Optional(CONF_TARGET, default=DEFAULT_TARGET): cv.string,
+        vol.Optional(CONF_TARGETS, default=DEFAULT_TARGETS): vol.All(
+            cv.ensure_list, [cv.string]
+        ),
+        vol.Optional(CONF_ROI_Y_MIN, default=DEFAULT_ROI_Y_MIN): cv.small_float,
+        vol.Optional(CONF_ROI_X_MIN, default=DEFAULT_ROI_X_MIN): cv.small_float,
+        vol.Optional(CONF_ROI_Y_MAX, default=DEFAULT_ROI_Y_MAX): cv.small_float,
+        vol.Optional(CONF_ROI_X_MAX, default=DEFAULT_ROI_X_MAX): cv.small_float,
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
+        vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES): vol.All(
+            vol.Coerce(int), vol.Range(min=0)
+        ),
     }
 )
 
 
-def get_label_instances(response, target, confidence_threshold):
-    """Get the number of instances of a target label above the confidence threshold."""
+Box = namedtuple("Box", "y_min x_min y_max x_max")
+Point = namedtuple("Point", "y x")
+
+
+def point_in_box(box: Box, point: Point) -> bool:
+    """Return true if point lies in box"""
+    if (box.x_min <= point.x <= box.x_max) and (box.y_min <= point.y <= box.y_max):
+        return True
+    return False
+
+
+def object_in_roi(roi: dict, centroid: dict) -> bool:
+    """Convenience to convert dicts to the Point and Box."""
+    target_center_point = Point(centroid["y"], centroid["x"])
+    roi_box = Box(roi["y_min"], roi["x_min"], roi["y_max"], roi["x_max"])
+    return point_in_box(roi_box, target_center_point)
+
+
+def get_objects(response: str) -> dict:
+    """Parse the data, returning detected objects only."""
+    objects = []
+    labels = []
+    decimal_places = 3
+
     for label in response["Labels"]:
-        if (
-            label["Name"].lower() == target.lower()
-        ):  # Lowercase both to prevent any comparing issues
-            confident_labels = [
-                l for l in label["Instances"] if l["Confidence"] > confidence_threshold
-            ]
-            return len(confident_labels)
-    return 0
+        if len(label["Instances"]) > 0:
+            for instance in label["Instances"]:
+                # Extract and format instance data
+                box = instance["BoundingBox"]
+                # Get bounding box
+                x_min, y_min, width, height = (
+                    box["Left"],
+                    box["Top"],
+                    box["Width"],
+                    box["Height"],
+                )
+                x_max, y_max = x_min + width, y_min + height
+
+                bounding_box = {
+                    "x_min": round(x_min, decimal_places),
+                    "y_min": round(y_min, decimal_places),
+                    "x_max": round(x_max, decimal_places),
+                    "y_max": round(y_max, decimal_places),
+                    "width": round(box["Width"], decimal_places),
+                    "height": round(box["Height"], decimal_places),
+                }
+
+                # Get box area (% of frame)
+                box_area = width * height * 100
+
+                # Get box centroid
+                centroid_x, centroid_y = (x_min + width / 2), (y_min + height / 2)
+                centroid = {
+                    "x": round(centroid_x, decimal_places),
+                    "y": round(centroid_y, decimal_places),
+                }
+
+                objects.append(
+                    {
+                        "name": label["Name"].lower(),
+                        "confidence": round(instance["Confidence"], decimal_places),
+                        "bounding_box": bounding_box,
+                        "box_area": round(box_area, decimal_places),
+                        "centroid": centroid,
+                    }
+                )
+        else:
+            label_info = {
+                "name": label["Name"].lower(),
+                "confidence": round(label["Confidence"], decimal_places),
+            }
+            labels.append(label_info)
+    return objects, labels
 
 
-def parse_labels(response):
-    """Parse the API labels data, returning objects only."""
-    return {
-        label["Name"]: round(label["Confidence"], 2) for label in response["Labels"]
-    }
-
-
-def get_valid_filename(name):
+def get_valid_filename(name: str) -> str:
     return re.sub(r"(?u)[^-\w.]", "", str(name).strip().replace(" ", "_"))
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
-    """Set up Rekognition."""
+    """Set up ObjectDetection."""
 
     import boto3
+
+    _LOGGER.debug("boto_retries setting is {}".format(config[CONF_BOTO_RETRIES]))
 
     aws_config = {
         CONF_REGION: config[CONF_REGION],
@@ -104,20 +200,42 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         CONF_SECRET_ACCESS_KEY: config[CONF_SECRET_ACCESS_KEY],
     }
 
-    client = boto3.client("rekognition", **aws_config)
+    retries = 0
+    success = False
+    while retries <= config[CONF_BOTO_RETRIES]:
+        try:
+            client = boto3.client("rekognition", **aws_config)
+            success = True
+            break
+        except KeyError:
+            _LOGGER.info("boto3 client failed, retries={}".format(retries))
+            retries += 1
+            time.sleep(1)
 
-    save_file_folder = config[CONF_SAVE_FILE_FOLDER]
+    if not success:
+        raise Exception(
+            "Failed to create boto3 client. Maybe try increasing "
+            "the boto_retries setting. Retry counter was {}".format(retries)
+        )
+
+    save_file_folder = config.get(CONF_SAVE_FILE_FOLDER)
     if save_file_folder:
         save_file_folder = Path(save_file_folder)
+
+    targets = [t.lower() for t in config[CONF_TARGETS]]  # ensure lower case
 
     entities = []
     for camera in config[CONF_SOURCE]:
         entities.append(
-            Rekognition(
+            ObjectDetection(
                 client,
                 config[CONF_REGION],
-                config[CONF_TARGET],
+                targets,
                 config[ATTR_CONFIDENCE],
+                config[CONF_ROI_Y_MIN],
+                config[CONF_ROI_X_MIN],
+                config[CONF_ROI_Y_MAX],
+                config[CONF_ROI_X_MAX],
                 save_file_folder,
                 config[CONF_SAVE_TIMESTAMPTED_FILE],
                 camera[CONF_ENTITY_ID],
@@ -127,25 +245,39 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     add_devices(entities)
 
 
-class Rekognition(ImageProcessingEntity):
+class ObjectDetection(ImageProcessingEntity):
     """Perform object and label recognition."""
 
     def __init__(
         self,
         client,
         region,
-        target,
+        targets,
         confidence,
+        roi_y_min,
+        roi_x_min,
+        roi_y_max,
+        roi_x_max,
         save_file_folder,
         save_timestamped_file,
         camera_entity,
         name=None,
     ):
         """Init with the client."""
-        self._client = client
-        self._region = region
-        self._target = target
+        self._aws_client = client
+        self._aws_region = region
+        self._targets = targets
         self._confidence = confidence
+        self._roi_y_min = roi_y_min
+        self._roi_x_min = roi_x_min
+        self._roi_y_max = roi_y_max
+        self._roi_x_max = roi_x_max
+        self._roi_dict = {
+            "y_min": roi_y_min,
+            "x_min": roi_x_min,
+            "y_max": roi_y_max,
+            "x_max": roi_x_max,
+        }
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
         self._camera_entity = camera_entity
@@ -153,28 +285,45 @@ class Rekognition(ImageProcessingEntity):
             self._name = name
         else:
             entity_name = split_entity_id(camera_entity)[1]
-            self._name = "{} {} {}".format("rekognition", target, entity_name)
+            self._name = f"rekognition_{entity_name}"
         self._state = None  # The number of instances of interest
-        self._last_detection = None  # The last time we detected something
-        self._labels = {}  # The parsed label data
+        self._last_detection = None  # The last time we detected a target
+        self._objects = []  # The parsed raw data
+        self._labels = []  # The parsed raw data
+        self._targets_found = []  # The filtered targets data
 
     def process_image(self, image):
         """Process an image."""
         self._state = None
-        self._labels = {}
+        self._objects = []
+        self._labels = []
+        self._targets_found = []
 
-        response = self._client.detect_labels(Image={"Bytes": image})
-        self._state = get_label_instances(response, self._target, self._confidence)
-        self._labels = parse_labels(response)
+        response = self._aws_client.detect_labels(Image={"Bytes": image})
+        self._objects, self._labels = get_objects(response)
+        self._targets_found = [
+            obj
+            for obj in self._objects
+            if (obj["name"] in self._targets)
+            and (obj["confidence"] > self._confidence)
+            and (object_in_roi(self._roi_dict, obj["centroid"]))
+        ]
+        self._state = len(self._targets_found)
 
         if self._state > 0:
             self._last_detection = dt_util.now().strftime(DATETIME_FORMAT)
+
+        # Fire events
+        for target in self._targets_found:
+            self.hass.bus.fire(EVENT_OBJECT_DETECTED, target)
+        for label in self._labels:
+            self.hass.bus.fire(EVENT_LABEL_DETECTED, label)
 
         if self._save_file_folder and self._state > 0:
             self.save_image(
                 image,
                 response,
-                self._target,
+                self._targets,
                 self._confidence,
                 self._save_file_folder,
                 self._name,
@@ -193,10 +342,17 @@ class Rekognition(ImageProcessingEntity):
     @property
     def device_state_attributes(self):
         """Return device specific state attributes."""
-        attr = self._labels
-        attr["target"] = self._target
-        if self._last_detection:
-            attr[f"last_{self._target.lower()}"] = self._last_detection
+        attr = {}
+        for target in self._targets:
+            attr[f"ROI {target} count"] = len(
+                [t for t in self._targets_found if t["name"] == target]
+            )
+            attr[f"ALL {target} count"] = len(
+                [t for t in self._objects if t["name"] == target]
+            )
+        attr["last_target_detection"] = self._last_detection
+        attr["objects"] = self._objects
+        attr["labels"] = self._labels
         return attr
 
     @property
@@ -205,33 +361,67 @@ class Rekognition(ImageProcessingEntity):
         return self._name
 
     @property
+    def unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return "targets"
+
+    @property
     def should_poll(self):
         """Return the polling state."""
         return False
 
-    def save_image(self, image, response, target, confidence, directory, camera_entity):
+    def save_image(
+        self, image, response, targets, confidence, directory, camera_entity
+    ):
         """Draws the actual bounding box of the detected objects."""
         try:
             img = Image.open(io.BytesIO(bytearray(image))).convert("RGB")
         except UnidentifiedImageError:
-            _LOGGER.warning("Sighthound unable to process image, bad data")
+            _LOGGER.warning("Rekognition unable to process image, bad data")
             return
         draw = ImageDraw.Draw(img)
 
-        for label in response["Labels"]:
-            if (label["Confidence"] < confidence) or (label["Name"] != target):
+        # Draw ROI only if configured and not default
+        roi = (
+            self._roi_y_min,
+            self._roi_x_min,
+            self._roi_y_max,
+            self._roi_x_max,
+        )  # Tuple
+        if roi != DEFAULT_ROI:
+            draw_box(
+                draw, roi, img.width, img.height, text="ROI", color=GREEN,
+            )
+
+        for obj in self._objects:
+            if not obj["name"] in self._targets:
                 continue
+            name = obj["name"]
+            confidence = obj["confidence"]
+            box = obj["bounding_box"]
+            centroid = obj["centroid"]
 
-            for instance in label["Instances"]:
-                box = instance["BoundingBox"]
+            if object_in_roi(self._roi_dict, centroid):
+                box_colour = RED
+            else:
+                box_colour = YELLOW
 
-                x, y, w, h = box["Left"], box["Top"], box["Width"], box["Height"]
-                x_max, y_max = x + w, y + h
+            box_label = f"{name}: {confidence:.1f}%"
+            draw_box(
+                draw,
+                (box["y_min"], box["x_min"], box["y_max"], box["x_max"]),
+                img.width,
+                img.height,
+                text=box_label,
+                color=box_colour,
+            )
 
-                box_label = f'{label["Name"]}: {label["Confidence"]:.1f}%'
-                draw_box(
-                    draw, (y, x, y_max, x_max), img.width, img.height, text=box_label,
-                )
+            # draw bullseye
+            draw.text(
+                (centroid["x"] * img.width, centroid["y"] * img.height),
+                text="X",
+                fill=box_colour,
+            )
 
         latest_save_path = (
             directory / f"{get_valid_filename(self._name).lower()}_latest.jpg"
@@ -241,4 +431,4 @@ class Rekognition(ImageProcessingEntity):
         if self._save_timestamped_file:
             timestamp_save_path = directory / f"{self._name}_{self._last_detection}.jpg"
             img.save(timestamp_save_path)
-            _LOGGER.info("Deepstack saved file %s", timestamp_save_path)
+            _LOGGER.info("Rekognition saved file %s", timestamp_save_path)
