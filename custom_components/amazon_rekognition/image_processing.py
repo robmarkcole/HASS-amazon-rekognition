@@ -70,6 +70,10 @@ SUPPORTED_REGIONS = [
 ]
 
 CONF_SAVE_FILE_FOLDER = "save_file_folder"
+
+CONF_SAVE_FILE_FORMAT = "save_file_format"
+DEFAULT_SAVE_FILE_FORMAT = "jpg"
+
 CONF_TARGETS = "targets"
 DEFAULT_TARGETS = ["person"]
 
@@ -102,6 +106,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_ROI_Y_MAX, default=DEFAULT_ROI_Y_MAX): cv.small_float,
         vol.Optional(CONF_ROI_X_MAX, default=DEFAULT_ROI_X_MAX): cv.small_float,
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
+        vol.Optional(CONF_SAVE_FILE_FORMAT, default=DEFAULT_SAVE_FILE_FORMAT): cv.string,
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
         vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES): vol.All(
             vol.Coerce(int), vol.Range(min=0)
@@ -239,6 +244,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
                 config[CONF_ROI_Y_MAX],
                 config[CONF_ROI_X_MAX],
                 save_file_folder,
+                config[CONF_SAVE_FILE_FORMAT].lower(),
                 config[CONF_SAVE_TIMESTAMPTED_FILE],
                 camera[CONF_ENTITY_ID],
                 camera.get(CONF_NAME),
@@ -261,6 +267,7 @@ class ObjectDetection(ImageProcessingEntity):
         roi_y_max,
         roi_x_max,
         save_file_folder,
+        save_file_format,
         save_timestamped_file,
         camera_entity,
         name=None,
@@ -281,6 +288,7 @@ class ObjectDetection(ImageProcessingEntity):
             "x_max": roi_x_max,
         }
         self._save_file_folder = save_file_folder
+        self._save_file_format = save_file_format
         self._save_timestamped_file = save_timestamped_file
         self._camera_entity = camera_entity
         if name:  # Since name is optional.
@@ -430,11 +438,15 @@ class ObjectDetection(ImageProcessingEntity):
             )
 
         latest_save_path = (
-            directory / f"{get_valid_filename(self._name).lower()}_latest.jpg"
+            directory / f"{get_valid_filename(self._name).lower()}_latest"
+            f".{self._save_file_format}"
         )
         img.save(latest_save_path)
 
         if self._save_timestamped_file:
-            timestamp_save_path = directory / f"{self._name}_{self._last_detection}.jpg"
+            timestamp_save_path = (
+                directory / f"{self._name}_{self._last_detection}"
+                f".{self._save_file_format}"
+            )
             img.save(timestamp_save_path)
             _LOGGER.info("Rekognition saved file %s", timestamp_save_path)
