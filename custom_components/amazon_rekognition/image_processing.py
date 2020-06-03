@@ -24,6 +24,8 @@ from homeassistant.components.image_processing import (
 from homeassistant.core import split_entity_id
 from homeassistant.util.pil import draw_box
 
+from homeassistant.const import ATTR_ENTITY_ID
+
 _LOGGER = logging.getLogger(__name__)
 
 CONF_REGION = "region_name"
@@ -315,9 +317,13 @@ class ObjectDetection(ImageProcessingEntity):
 
         # Fire events
         for target in self._targets_found:
-            self.hass.bus.fire(EVENT_OBJECT_DETECTED, target)
+            target_event_data = target.copy()
+            target_event_data[ATTR_ENTITY_ID] = self.entity_id
+            self.hass.bus.fire(EVENT_OBJECT_DETECTED, target_event_data)
         for label in self._labels:
-            self.hass.bus.fire(EVENT_LABEL_DETECTED, label)
+            label_event_data = label.copy()
+            label_event_data[ATTR_ENTITY_ID] = self.entity_id
+            self.hass.bus.fire(EVENT_LABEL_DETECTED, label_event_data)
 
         if self._save_file_folder and self._state > 0:
             self.save_image(

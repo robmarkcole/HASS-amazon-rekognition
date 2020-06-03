@@ -48,15 +48,15 @@ To demonstrate how the region of interest (ROI) works, in this example 4 cars ar
 </p>
 
 ## Events
-Every time an image is processed, two kinds of events are published. The events can be viewed in the logs if logger is set to `debug`
+Every time an image is processed, two kinds of events are published. The events can be viewed via the HA UI from `Developer tools -> EVENTS -> :Listen to events`. The events are:
 
 1) `rekognition.object_detected`: contains all the data associated with an object.
 
-```<Event rekognition.object_detected[L]: name=person, confidence=99.787, bounding_box=x_min=0.228, y_min=0.258, x_max=0.381, y_max=0.774, width=0.153, height=0.516, box_area=7.905, centroid=x=0.304, y=0.516>```
+```<Event rekognition.object_detected[L]: name=person, confidence=99.787, bounding_box=x_min=0.228, y_min=0.258, x_max=0.381, y_max=0.774, width=0.153, height=0.516, box_area=7.905, centroid=x=0.304, y=0.516, entity_id=image_processing.rekognition_local_file_1>```
 
 2) `rekognition.label_detected`: contains the name and confidence of each label.
 
-```<Event rekognition.label_detected[L]: name=human, confidence=99.853>```
+```<Event rekognition.label_detected[L]: name=people, confidence=58.184, entity_id=image_processing.rekognition_local_file_1>```
 
 These events can be used to trigger automations, increment counters etc.
 
