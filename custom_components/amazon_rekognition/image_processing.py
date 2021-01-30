@@ -446,6 +446,7 @@ class ObjectDetection(ImageProcessingEntity):
             attr[CONF_SAVE_FILE_FOLDER] = str(self._save_file_folder)
             attr[CONF_SAVE_TIMESTAMPTED_FILE] = self._save_timestamped_file
             attr[CONF_ALWAYS_SAVE_LATEST_JPG] = self._always_save_latest_jpg
+            attr[CONF_SHOW_BOXES] = self._show_boxes
         attr["labels"] = self._labels
         return attr
 
