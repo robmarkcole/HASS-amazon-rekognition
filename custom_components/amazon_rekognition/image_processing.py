@@ -70,6 +70,7 @@ CONF_ROI_X_MAX = "roi_x_max"
 
 DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
 DEFAULT_BOTO_RETRIES = 5
+PERSON = "person"
 DEFAULT_TARGETS = [{CONF_TARGET: PERSON}]
 DEFAULT_ROI_Y_MIN = 0.0
 DEFAULT_ROI_Y_MAX = 1.0
@@ -438,8 +439,6 @@ class ObjectDetection(ImageProcessingEntity):
         attr["summary"] = self._summary
         if self._last_detection:
             attr["last_target_detection"] = self._last_detection
-        if self._custom_model:
-            attr["custom_model"] = self._custom_model
         attr["all_objects"] = [
             {obj["name"]: obj["confidence"]} for obj in self._objects
         ]
