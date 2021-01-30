@@ -1,13 +1,13 @@
 # Amazon Rekognition for Home Assistant
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, which match the configured conditions. The default target is `person`, but multiple targets can be listed, in which case the state is the total number of any targets detected. The time that any target object was last detected is available as an attribute. Optionally a region of interest (ROI) can be configured, and only objects with their center (represented by a `x`) will be included in the state count. The ROI will be displayed as a green box, and objects with their center in the ROI have a red box. Objects with their center outside the ROI have a yellow box. Rekognition also assigns each image a list of labels, which represent the classes of objects in the image. For example, if the image contained a cat or a dog, the label might be `animal`. Labels are useful if you don't know exactly what object to monitor for. Labels are exposed via the `labels` attribute of the entity.
+Object detection with [Amazon Rekognition](https://aws.amazon.com/rekognition/). The state of the sensor is the number of detected target objects in the image, which match the configured conditions. The default target is `person`, but multiple targets can be listed, in which case the state is the total number of any targets detected. The time that any target object was last detected is available as an attribute. Optionally a region of interest (ROI) can be configured, and only objects with their center (represented by a `x`) will be included in the state count. The ROI will be displayed as a green box, and objects with their center in the ROI have a red box. Rekognition also assigns each image a list of labels, which represent the classes of objects in the image. For example, if the image contained a cat or a dog, the label might be `animal`. Labels are useful if you don't know exactly what object to monitor for. Labels are exposed via the `labels` attribute of the entity.
 
 **Note** that in order to prevent accidental over-billing, the component will not scan images automatically, but requires you to call the `image_processing.scan` service.
 
 **Pricing:** As part of the [AWS Free Tier](https://aws.amazon.com/rekognition/pricing/), you can get started with Amazon Rekognition Image for free. Upon sign-up, new Amazon Rekognition customers can analyze 5,000 images per month for the first 12 months. After that price is around $1 for 1000 images.
 
-## Integration setup
+## Setup
 For advice on getting your Amazon credentials see the [Polly docs](https://www.home-assistant.io/components/tts.amazon_polly/).
 
 Place the `custom_components` folder in your configuration directory (or add its contents to an existing custom_components folder). Add to your `configuration.yaml`:
@@ -18,19 +18,41 @@ image_processing:
     aws_access_key_id: AWS_ACCESS_KEY_ID
     aws_secret_access_key: AWS_SECRET_ACCESS_KEY
     region_name: eu-west-1 # optional region, default is us-east-1
-    save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
-    save_timestamped_file: True # Set True to save timestamped images, default False
     confidence: 90 # Optional, default is 80 percent
-    targets: # Optional target objects, default person
-      - car
-      - person
-    roi_x_min: 0.35 # optional, range 0-1, must be less than roi_x_max
+    scale: 0.75
+    targets:
+      - target: person
+      - target: car
+        confidence: 50
+    # show_boxes: False
+    # roi_x_min: 0.35 # optional, range 0-1, must be less than roi_x_max
     roi_x_max: 0.8 # optional, range 0-1, must be more than roi_x_min
     roi_y_min: 0.4 # optional, range 0-1, must be less than roi_y_max
     roi_y_max: 0.8 # optional, range 0-1, must be more than roi_y_min
+    save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
+    save_timestamped_file: True # Set True to save timestamped images, default False
+    always_save_latest_jpg: True
+
     source:
       - entity_id: camera.local_file
 ```
+
+Configuration variables:
+- **aws_access_key_id**: Your AWS key ID
+- **aws_secret_access_key**: Your AWS key secret
+- **region_name**: Your preferred AWS region
+- **confidence**: (Optional) The confidence (in %) above which detected targets are counted in the sensor state. Default value: 80
+- **scale**: (optional, default 1.0), range 0.1-1.0, applies a scaling factor to the images that are saved. This reduces the disk space used by saved images, and is especially beneficial when using high resolution cameras.
+- **targets**: The list of target object names and/or `object_type`, default `person`. Optionally a `confidence` can be set for this target, if not the default confidence is used. Note the minimum possible confidence is 10%.
+- **show_boxes**: (optional, default `True`), if `False` bounding boxes are not shown on saved images
+- **roi_x_min**: (optional, default 0), range 0-1, must be less than roi_x_max
+- **roi_x_max**: (optional, default 1), range 0-1, must be more than roi_x_min
+- **roi_y_min**: (optional, default 0), range 0-1, must be less than roi_y_max
+- **roi_y_max**: (optional, default 1), range 0-1, must be more than roi_y_min
+- **save_file_folder**: (Optional) The folder to save processed images to. Note that folder path should be added to [whitelist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/)
+- **save_timestamped_file**: (Optional, default `False`, requires `save_file_folder` to be configured) Save the processed image with the time of detection in the filename.
+- **always_save_latest_jpg**: (Optional, default `False`, requires `save_file_folder` to be configured) Always save the last processed image, even if there were no detections.
+- **source**: Must be a camera.
 
 For the ROI, the (x=0,y=0) position is the top left pixel of the image, and the (x=1,y=1) position is the bottom right pixel of the image. It might seem a bit odd to have y running from top to bottom of the image, but that is the [coordinate system used by pillow](https://pillow.readthedocs.io/en/3.1.x/handbook/concepts.html#coordinate-system).
 
@@ -39,12 +61,6 @@ If you configure `save_file_folder` an image will be stored with bounding boxes 
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="800">
-</p>
-
-To demonstrate how the region of interest (ROI) works, in this example 4 cars are detected, but only the blue car has its center within the ROI (green box). Therefore the state of the sensor is 1. I am using this to check when there is a car parked outside my house, as I am not interested in cars parked elsewhere.
-
-<p align="center">
-<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/camera-view.png" width="1000">
 </p>
 
 ## Events
