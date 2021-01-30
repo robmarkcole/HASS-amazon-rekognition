@@ -497,6 +497,7 @@ class ObjectDetection(ImageProcessingEntity):
         )
         img.save(latest_save_path)
         _LOGGER.info("Rekognition saved file %s", latest_save_path)
+        saved_image_path = latest_save_path
 
         if self._save_timestamped_file:
             timestamp_save_path = directory / f"{self._name}_{self._last_detection}.jpg"
