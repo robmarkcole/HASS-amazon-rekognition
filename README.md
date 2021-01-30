@@ -32,7 +32,6 @@ image_processing:
     save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
     save_timestamped_file: True # Set True to save timestamped images, default False
     always_save_latest_jpg: True
-
     source:
       - entity_id: camera.local_file
 ```
