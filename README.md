@@ -19,7 +19,6 @@ image_processing:
     aws_secret_access_key: AWS_SECRET_ACCESS_KEY
     region_name: eu-west-1 # optional region, default is us-east-1
     confidence: 90 # Optional, default is 80 percent
-    scale: 0.75
     targets:
       - target: person
       - target: car
@@ -29,6 +28,7 @@ image_processing:
     roi_x_max: 0.8 # optional, range 0-1, must be more than roi_x_min
     roi_y_min: 0.4 # optional, range 0-1, must be less than roi_y_max
     roi_y_max: 0.8 # optional, range 0-1, must be more than roi_y_min
+    scale: 0.75
     save_file_folder: /config/www/amazon-rekognition/ # Optional image storage
     save_timestamped_file: True # Set True to save timestamped images, default False
     always_save_latest_jpg: True
@@ -41,13 +41,13 @@ Configuration variables:
 - **aws_secret_access_key**: Your AWS key secret
 - **region_name**: Your preferred AWS region
 - **confidence**: (Optional) The confidence (in %) above which detected targets are counted in the sensor state. Default value: 80
-- **scale**: (optional, default 1.0), range 0.1-1.0, applies a scaling factor to the images that are saved. This reduces the disk space used by saved images, and is especially beneficial when using high resolution cameras.
 - **targets**: The list of target object names and/or `object_type`, default `person`. Optionally a `confidence` can be set for this target, if not the default confidence is used. Note the minimum possible confidence is 10%.
 - **show_boxes**: (optional, default `True`), if `False` bounding boxes are not shown on saved images
 - **roi_x_min**: (optional, default 0), range 0-1, must be less than roi_x_max
 - **roi_x_max**: (optional, default 1), range 0-1, must be more than roi_x_min
 - **roi_y_min**: (optional, default 0), range 0-1, must be less than roi_y_max
 - **roi_y_max**: (optional, default 1), range 0-1, must be more than roi_y_min
+- **scale**: (optional, default 1.0), range 0.1-1.0, applies a scaling factor to the images that are saved. This reduces the disk space used by saved images, and is especially beneficial when using high resolution cameras.
 - **save_file_folder**: (Optional) The folder to save processed images to. Note that folder path should be added to [whitelist_external_dirs](https://www.home-assistant.io/docs/configuration/basic/)
 - **save_timestamped_file**: (Optional, default `False`, requires `save_file_folder` to be configured) Save the processed image with the time of detection in the filename.
 - **always_save_latest_jpg**: (Optional, default `False`, requires `save_file_folder` to be configured) Always save the last processed image, even if there were no detections.
