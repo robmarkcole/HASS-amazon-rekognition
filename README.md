@@ -59,7 +59,7 @@ For the ROI, the (x=0,y=0) position is the top left pixel of the image, and the 
 If you configure `save_file_folder` an image will be stored with bounding boxes drawn around target objects. Boxes will only be drawn for objects where the detection confidence is above the configured `confidence` (default 80%).
 
 <p align="center">
-<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="800">
+<img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="600">
 </p>
 
 ## Events
