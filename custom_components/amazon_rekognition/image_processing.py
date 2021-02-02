@@ -296,12 +296,12 @@ class ObjectDetection(ImageProcessingEntity):
         self._aws_client = client
         self._aws_region = region
         self._confidence = confidence
-        self._summary = {}
         self._targets = targets
         for target in self._targets:
             if CONF_CONFIDENCE not in target.keys():
                 target.update({CONF_CONFIDENCE: self._confidence})
         self._targets_names = [target[CONF_TARGET] for target in targets]
+        self._summary = {target: 0 for target in self._targets_names}
 
         self._camera_entity = camera_entity
         if name:  # Since name is optional.
@@ -355,7 +355,7 @@ class ObjectDetection(ImageProcessingEntity):
         self._objects = []
         self._labels = []
         self._targets_found = []
-        self._summary = {}
+        self._summary = {target: 0 for target in self._targets_names}
         saved_image_path = None
 
         response = self._aws_client.detect_labels(Image={"Bytes": image})
@@ -384,6 +384,9 @@ class ObjectDetection(ImageProcessingEntity):
             obj["name"] for obj in self._targets_found
         ]  # Just the list of target names, e.g. [car, car, person]
         self._summary = dict(Counter(targets_found))  # e.g. {'car':2, 'person':1}
+        for target in self._targets_names:
+            if target not in self._summary.keys():
+                self._summary.update({target: 0})
 
         if self._save_file_folder:
             if self._state > 0 or self._always_save_latest_jpg:
