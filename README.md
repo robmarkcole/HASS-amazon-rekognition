@@ -62,6 +62,19 @@ If you configure `save_file_folder` an image will be stored with bounding boxes 
 <img src="https://github.com/robmarkcole/HASS-amazon-rekognition/blob/master/assets/usage.png" width="600">
 </p>
 
+## Using the Summary attribute
+The Summary attribute will list the count of detected targets. This count can be broken out using a [template](https://www.home-assistant.io/integrations/template/) sensor, for example if you have a target `person`:
+
+```yaml
+sensor:
+  - platform: template
+    sensors:
+      rekognition_people:
+        friendly_name: "People"
+        unit_of_measurement: 'persons'
+        value_template: "{{ states.image_processing.rekognition_local_file_1.attributes.summary.person }}"
+```
+
 ## Events
 Every time an image is processed, two kinds of events are published. The events can be viewed via the HA UI from `Developer tools -> EVENTS -> :Listen to events`. The events are:
 
