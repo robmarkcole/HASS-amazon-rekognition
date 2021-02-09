@@ -1,7 +1,7 @@
 """
 Platform that will perform object detection.
 """
-from collections import namedtuple, Counter
+from collections import Counter
 import io
 import logging
 import re
@@ -132,17 +132,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
     }
 )
-
-
-# Box = namedtuple("Box", "y_min x_min y_max x_max")
-# Point = namedtuple("Point", "y x")
-
-
-# def point_in_box(box: Box, point: Point) -> bool:
-#     """Return true if point lies in box"""
-#     if (box.x_min <= point.x <= box.x_max) and (box.y_min <= point.y <= box.y_max):
-#         return True
-#     return False
 
 
 def object_in_roi(roi: dict, centroid: dict) -> bool:
