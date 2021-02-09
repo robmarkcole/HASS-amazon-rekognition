@@ -1,7 +1,7 @@
 """
 Platform that will perform object detection.
 """
-from collections import namedtuple, Counter
+from collections import Counter
 import io
 import logging
 import re
@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from PIL import Image, ImageDraw, UnidentifiedImageError
+from shapely.geometry import Point, Polygon
 
 import homeassistant.helpers.config_validation as cv
 import homeassistant.util.dt as dt_util
@@ -133,22 +134,18 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-Box = namedtuple("Box", "y_min x_min y_max x_max")
-Point = namedtuple("Point", "y x")
-
-
-def point_in_box(box: Box, point: Point) -> bool:
-    """Return true if point lies in box"""
-    if (box.x_min <= point.x <= box.x_max) and (box.y_min <= point.y <= box.y_max):
-        return True
-    return False
-
-
 def object_in_roi(roi: dict, centroid: dict) -> bool:
-    """Convenience to convert dicts to the Point and Box."""
-    target_center_point = Point(centroid["y"], centroid["x"])
-    roi_box = Box(roi["y_min"], roi["x_min"], roi["y_max"], roi["x_max"])
-    return point_in_box(roi_box, target_center_point)
+    """Determine if object center point is in ROI."""
+    target_center_point = Point(centroid["x"], centroid["y"])
+    roi_box = Polygon(
+        [
+            (roi["x_min"], roi["y_min"]),
+            (roi["x_max"], roi["y_min"]),
+            (roi["x_max"], roi["y_max"]),
+            (roi["x_min"], roi["y_max"]),
+        ]
+    )
+    return target_center_point.within(roi_box)
 
 
 def get_objects(response: str) -> dict:
