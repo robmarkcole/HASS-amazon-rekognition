@@ -526,6 +526,6 @@ class ObjectDetection(ImageProcessingEntity):
             if self._s3_bucket:
                 self._aws_s3_client.upload_file(Filename=str(timestamp_save_path), Bucket=self._s3_bucket, Key=filename)
                 _LOGGER.info(
-                    f"Put file {filename} to S3"
+                    f"Uploaded file {filename} to S3"
                 )
         return str(timestamp_save_path)
