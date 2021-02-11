@@ -62,6 +62,7 @@ CONF_SHOW_BOXES = "show_boxes"
 CONF_SCALE = "scale"
 CONF_TARGET = "target"
 CONF_TARGETS = "targets"
+CONF_S3_BUCKET = "s3_bucket"
 
 CONF_ROI_Y_MIN = "roi_y_min"
 CONF_ROI_X_MIN = "roi_x_min"
@@ -125,6 +126,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
         vol.Optional(CONF_ALWAYS_SAVE_LATEST_JPG, default=False): cv.boolean,
+        vol.Optional(CONF_S3_BUCKET): cv.string,
         vol.Optional(CONF_SHOW_BOXES, default=True): cv.boolean,
         vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES): vol.All(
             vol.Coerce(int), vol.Range(min=0)
@@ -264,6 +266,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
                 save_file_folder=save_file_folder,
                 save_timestamped_file=config.get(CONF_SAVE_TIMESTAMPTED_FILE),
                 always_save_latest_jpg=config.get(CONF_ALWAYS_SAVE_LATEST_JPG),
+                s3_bucket=config.get(CONF_S3_BUCKET),
                 camera_entity=camera.get(CONF_ENTITY_ID),
                 name=camera.get(CONF_NAME),
             )
@@ -289,6 +292,7 @@ class ObjectDetection(ImageProcessingEntity):
         save_file_folder,
         save_timestamped_file,
         always_save_latest_jpg,
+        s3_bucket,
         camera_entity,
         name=None,
     ):
@@ -330,6 +334,7 @@ class ObjectDetection(ImageProcessingEntity):
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
         self._always_save_latest_jpg = always_save_latest_jpg
+        self._s3_bucket = s3_bucket
         self._image = None
 
     def process_image(self, image):
@@ -450,6 +455,8 @@ class ObjectDetection(ImageProcessingEntity):
             attr[CONF_SAVE_TIMESTAMPTED_FILE] = self._save_timestamped_file
             attr[CONF_ALWAYS_SAVE_LATEST_JPG] = self._always_save_latest_jpg
             attr[CONF_SHOW_BOXES] = self._show_boxes
+        if self._s3_bucket:
+            attr[CONF_S3_BUCKET] = self._s3_bucket
         attr["labels"] = self._labels
         return attr
 
