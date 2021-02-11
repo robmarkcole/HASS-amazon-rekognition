@@ -231,7 +231,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     success = False
     while retries <= config[CONF_BOTO_RETRIES]:
         try:
-            client = boto3.client("rekognition", **aws_config)
+            rekognition_client = boto3.client("rekognition", **aws_config)
             success = True
             break
         except KeyError:
@@ -245,6 +245,11 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             "the boto_retries setting. Retry counter was {}".format(retries)
         )
 
+    if config.get(CONF_S3_BUCKET):
+        s3_client = boto3.client("s3", **aws_config)
+    else:
+        s3_client = None
+
     save_file_folder = config.get(CONF_SAVE_FILE_FOLDER)
     if save_file_folder:
         save_file_folder = Path(save_file_folder)
@@ -253,7 +258,8 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     for camera in config[CONF_SOURCE]:
         entities.append(
             ObjectDetection(
-                client=client,
+                rekognition_client=rekognition_client,
+                s3_client=s3_client,
                 region=config.get(CONF_REGION),
                 targets=config.get(CONF_TARGETS),
                 confidence=config.get(CONF_CONFIDENCE),
@@ -279,7 +285,8 @@ class ObjectDetection(ImageProcessingEntity):
 
     def __init__(
         self,
-        client,
+        rekognition_client,
+        s3_client,
         region,
         targets,
         confidence,
@@ -297,7 +304,8 @@ class ObjectDetection(ImageProcessingEntity):
         name=None,
     ):
         """Init with the client."""
-        self._aws_client = client
+        self._aws_rekognition_client = rekognition_client
+        self._aws_s3_client = s3_client
         self._aws_region = region
         self._confidence = confidence
         self._targets = targets
@@ -363,7 +371,7 @@ class ObjectDetection(ImageProcessingEntity):
         self._summary = {target: 0 for target in self._targets_names}
         saved_image_path = None
 
-        response = self._aws_client.detect_labels(Image={"Bytes": image})
+        response = self._aws_rekognition_client.detect_labels(Image={"Bytes": image})
         self._objects, self._labels = get_objects(response)
         self._targets_found = []
 
@@ -511,8 +519,13 @@ class ObjectDetection(ImageProcessingEntity):
         saved_image_path = latest_save_path
 
         if self._save_timestamped_file:
-            timestamp_save_path = directory / f"{self._name}_{self._last_detection}.jpg"
+            filename = f"{self._name}_{self._last_detection}.jpg"
+            timestamp_save_path = directory / filename
             img.save(timestamp_save_path)
             _LOGGER.info("Rekognition saved file %s", timestamp_save_path)
-            saved_image_path = timestamp_save_path
-        return str(saved_image_path)
+            if self._s3_bucket:
+                self._aws_s3_client.upload_file(Filename=str(timestamp_save_path), Bucket=self._s3_bucket, Key=filename)
+                _LOGGER.info(
+                    f"Put file {filename} to S3"
+                )
+        return str(timestamp_save_path)
