@@ -55,9 +55,10 @@ SUPPORTED_REGIONS = [
 ]
 
 CONF_BOTO_RETRIES = "boto_retries"
+CONF_SAVE_FILE_FORMAT = "save_file_format"
 CONF_SAVE_FILE_FOLDER = "save_file_folder"
 CONF_SAVE_TIMESTAMPTED_FILE = "save_timestamped_file"
-CONF_ALWAYS_SAVE_LATEST_JPG = "always_save_latest_jpg"
+CONF_ALWAYS_SAVE_LATEST_FILE = "always_save_latest_file"
 CONF_SHOW_BOXES = "show_boxes"
 CONF_SCALE = "scale"
 CONF_TARGET = "target"
@@ -93,6 +94,8 @@ FILE = "file"
 OBJECT = "object"
 SAVED_FILE = "saved_file"
 MIN_CONFIDENCE = 0.1
+JPG = "jpg"
+PNG = "png"
 
 # rgb(red, green, blue)
 RED = (255, 0, 0)  # For objects within the ROI
@@ -124,8 +127,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             vol.Coerce(float, vol.Range(min=0.1, max=1))
         ),
         vol.Optional(CONF_SAVE_FILE_FOLDER): cv.isdir,
+        vol.Optional(CONF_SAVE_FILE_FORMAT, default=JPG): vol.In([JPG, PNG]),
         vol.Optional(CONF_SAVE_TIMESTAMPTED_FILE, default=False): cv.boolean,
-        vol.Optional(CONF_ALWAYS_SAVE_LATEST_JPG, default=False): cv.boolean,
+        vol.Optional(CONF_ALWAYS_SAVE_LATEST_FILE, default=False): cv.boolean,
         vol.Optional(CONF_S3_BUCKET): cv.string,
         vol.Optional(CONF_SHOW_BOXES, default=True): cv.boolean,
         vol.Optional(CONF_BOTO_RETRIES, default=DEFAULT_BOTO_RETRIES): vol.All(
@@ -269,9 +273,10 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
                 roi_x_max=config[CONF_ROI_X_MAX],
                 scale=config[CONF_SCALE],
                 show_boxes=config[CONF_SHOW_BOXES],
+                save_file_format=config[CONF_SAVE_FILE_FORMAT],
                 save_file_folder=save_file_folder,
                 save_timestamped_file=config.get(CONF_SAVE_TIMESTAMPTED_FILE),
-                always_save_latest_jpg=config.get(CONF_ALWAYS_SAVE_LATEST_JPG),
+                always_save_latest_file=config.get(CONF_ALWAYS_SAVE_LATEST_FILE),
                 s3_bucket=config.get(CONF_S3_BUCKET),
                 camera_entity=camera.get(CONF_ENTITY_ID),
                 name=camera.get(CONF_NAME),
@@ -296,9 +301,10 @@ class ObjectDetection(ImageProcessingEntity):
         roi_x_max,
         scale,
         show_boxes,
+        save_file_format,
         save_file_folder,
         save_timestamped_file,
-        always_save_latest_jpg,
+        always_save_latest_file,
         s3_bucket,
         camera_entity,
         name=None,
@@ -339,9 +345,10 @@ class ObjectDetection(ImageProcessingEntity):
         self._last_detection = None
         self._image_width = None
         self._image_height = None
+        self._save_file_format = save_file_format
         self._save_file_folder = save_file_folder
         self._save_timestamped_file = save_timestamped_file
-        self._always_save_latest_jpg = always_save_latest_jpg
+        self._always_save_latest_file = always_save_latest_file
         self._s3_bucket = s3_bucket
         self._image = None
 
@@ -402,7 +409,7 @@ class ObjectDetection(ImageProcessingEntity):
                 self._summary.update({target: 0})
 
         if self._save_file_folder:
-            if self._state > 0 or self._always_save_latest_jpg:
+            if self._state > 0 or self._always_save_latest_file:
                 saved_image_path = self.save_image(
                     self._targets_found, self._save_file_folder,
                 )
@@ -459,9 +466,10 @@ class ObjectDetection(ImageProcessingEntity):
             {obj["name"]: obj["confidence"]} for obj in self._objects
         ]
         if self._save_file_folder:
+            attr[CONF_SAVE_FILE_FORMAT] = self._save_file_format
             attr[CONF_SAVE_FILE_FOLDER] = str(self._save_file_folder)
             attr[CONF_SAVE_TIMESTAMPTED_FILE] = self._save_timestamped_file
-            attr[CONF_ALWAYS_SAVE_LATEST_JPG] = self._always_save_latest_jpg
+            attr[CONF_ALWAYS_SAVE_LATEST_FILE] = self._always_save_latest_file
             attr[CONF_SHOW_BOXES] = self._show_boxes
         if self._s3_bucket:
             attr[CONF_S3_BUCKET] = self._s3_bucket
@@ -512,14 +520,14 @@ class ObjectDetection(ImageProcessingEntity):
             )
 
         latest_save_path = (
-            directory / f"{get_valid_filename(self._name).lower()}_latest.jpg"
+            directory / f"{get_valid_filename(self._name).lower()}_latest.{self._save_file_format}"
         )
         img.save(latest_save_path)
         _LOGGER.info("Rekognition saved file %s", latest_save_path)
         saved_image_path = latest_save_path
 
         if self._save_timestamped_file:
-            filename = f"{self._name}_{self._last_detection}.jpg"
+            filename = f"{self._name}_{self._last_detection}.{self._save_file_format}"
             timestamp_save_path = directory / filename
             img.save(timestamp_save_path)
             _LOGGER.info("Rekognition saved file %s", timestamp_save_path)
