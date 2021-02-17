@@ -119,3 +119,8 @@ Currently only the helper functions are tested, using pytest.
 * `source venv/bin/activate`
 * `pip install -r requirements-dev.txt`
 * `venv/bin/py.test custom_components/amazon_rekognition/tests.py -vv -p no:warnings`
+
+## Video of usage
+Checkout this excellent video of usage from [MecaHumArduino](https://www.youtube.com/channel/UCwpIueN8B-42Z8vfxVt0yEQ)
+
+[![](http://img.youtube.com/vi/GCHYBxnZK-E/0.jpg)](http://www.youtube.com/watch?v=GCHYBxnZK-E "")
