@@ -536,4 +536,5 @@ class ObjectDetection(ImageProcessingEntity):
                 _LOGGER.info(
                     f"Uploaded file {filename} to S3"
                 )
-        return str(timestamp_save_path)
+            return str(timestamp_save_path)
+        return str(saved_image_path)
