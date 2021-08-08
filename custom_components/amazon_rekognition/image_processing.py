@@ -70,7 +70,7 @@ CONF_ROI_X_MIN = "roi_x_min"
 CONF_ROI_Y_MAX = "roi_y_max"
 CONF_ROI_X_MAX = "roi_x_max"
 
-DATETIME_FORMAT = "%Y-%m-%d_%H:%M:%S"
+DATETIME_FORMAT = "%Y-%m-%d_%H.%M.%S"
 DEFAULT_BOTO_RETRIES = 5
 PERSON = "person"
 DEFAULT_TARGETS = [{CONF_TARGET: PERSON}]
